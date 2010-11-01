@@ -1,0 +1,9 @@
+This is a very simple parameterization implement.
+The input is a 2-manifold and a quad file(*.quad).
+The quad file format is as follow:
+
+line 1: the number of conner vertex (n)
+the next n lines: each conner vertex's index in mesh
+
+line n+2: the number of quad path (m)
+then is each path's vertex number and its vertics
