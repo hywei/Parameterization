@@ -79,13 +79,6 @@ private:
 	QAction* toolBarAct;
 	QAction* stateBarAct;
 
-	// window menu actions
-
-	// quad menu actions
-	QAction* loadEigenAct;
-	QAction* connectLineAct;
-	QAction* removeNoiseAct;
-
 	// help menu actions;
 	QAction* aboutAct;
 

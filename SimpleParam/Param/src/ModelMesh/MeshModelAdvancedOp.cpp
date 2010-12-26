@@ -34,8 +34,8 @@
 
 
 #include "MeshModelAdvancedOp.h"
-#include "..\Numerical\Rotation.h"
-#include <assert.h>
+#include "../Numerical/Rotation.h"
+#include <cassert>
 
 
 // Constructor

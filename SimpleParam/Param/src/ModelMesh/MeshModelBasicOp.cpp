@@ -34,9 +34,9 @@
 #include "MeshModelBasicOp.h"
 #include <stack>
 #include <algorithm>
-#include "..\Numerical\Heap.h"
-#include <math.h>
-#include <assert.h>
+#include "../Numerical/Heap.h"
+#include <cmath>
+#include <cassert>
 #include <fstream>
 
 

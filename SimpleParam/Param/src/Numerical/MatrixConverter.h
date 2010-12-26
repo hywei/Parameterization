@@ -4,7 +4,7 @@
 
 #include "MeshSparseMatrix.h"
 #include "matrix.h"
-#include "../hj_3rd/include/sparse/sparse.h"
+#include <hj_3rd/hjlib/sparse/sparse.h>
 using namespace zjucad::matrix;
 
 class CMatrixConverter

@@ -18,7 +18,7 @@ class Utility;
 
 namespace PARAM
 {
-	class QuadParameter;
+    class Parameter;
 	class ParamDrawer;
 }
 
@@ -125,7 +125,7 @@ public:
 	boost::shared_ptr<COpenGL> p_opengl;
 	boost::shared_ptr<CUIHandler> p_UIHander;
 	boost::shared_ptr<Utility> p_util;
-	boost::shared_ptr<PARAM::QuadParameter> p_param;
+	boost::shared_ptr<PARAM::Parameter> p_param;
 	boost::shared_ptr<PARAM::ParamDrawer> p_param_drawer;
 };
 

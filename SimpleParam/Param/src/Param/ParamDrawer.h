@@ -5,7 +5,7 @@
 
 namespace PARAM
 {
-	class QuadParameter;
+	class Parameter;
 	class SurfaceCoord;
 
 	class ParamDrawer
@@ -53,7 +53,7 @@ namespace PARAM
 		int GetSelectedVertID() const { return m_selected_vert_id; }
 
 	public:
-		ParamDrawer(const QuadParameter& quad_param);
+		ParamDrawer(const Parameter& quad_param);
 		~ParamDrawer();
 
 		void Draw() const;
@@ -77,7 +77,7 @@ namespace PARAM
 		void DrawSphere(const Coord& center, double point_size = 1.0) const;
 
 	private:
-		const QuadParameter& m_quad_param;
+		const Parameter& m_parameter;
 
 		std::vector<int> m_uncorrespondnig_vert_array;
 

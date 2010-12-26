@@ -31,9 +31,9 @@
 
 
 #include "BasicDataType.h"
-#include "../Numerical/Matrix.h"
+#include "../Numerical/matrix.h"
 #include "../Numerical/Rotation.h"
-#include <math.h>
+#include <cmath>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -97,12 +97,12 @@ public:
 	void PrintArray(T& arr, std::string arrName)
     {
         int n = arr.size();
-        cout << '\n';
+        std::cout << '\n';
         for(int i = 0; i < n; ++ i)
         {
-            cout << arrName;
+            std::cout << arrName;
             printf("[%8d] = ", i);
-            cout << arr[i] << '\n';
+            std::cout << arr[i] << '\n';
         }
     }
     // Mean value and variance calculation
@@ -118,7 +118,7 @@ public:
             Mean += arr[i];
         Mean /= (double)n;
 
-        for(i = 0; i < n; ++ i)
+        for(int i = 0; i < n; ++ i)
         {
             double tmp = arr[i]-Mean;
             Var += tmp*tmp;
@@ -168,7 +168,7 @@ public:
 	template <class T>  // Make sure class T is a vector of basic data type (int, float, double, etc... )
 	void ReverseVector(std::vector<T>& arr)
 	{
-		vector<T> tmp_arr(arr);
+      std::vector<T> tmp_arr(arr);
 
 		int n = (int) arr.size();
 		if(n == 0)
@@ -319,7 +319,7 @@ public:
 	bool SegmentIntersection(double s1x1, double s1y1, double s1x2, double s1y2,
 		                     double s2x1, double s2y1, double s2x2, double s2y2,
 							 double& r, double &s);
-	bool SegmentIntersection(Coord& A, Coord& B, Coord& C, Coord& D, double& r, double& s);
+	bool SegmentIntersection(const Coord& A, const Coord& B, const Coord& C, const Coord& D, double& r, double& s);
 	bool TEdgeIntersection(std::pair<Coord, Coord>& edge, std::pair<Coord, Coord>& radial, 
 		std::pair<Coord, IntersectionType>& interSection);
 

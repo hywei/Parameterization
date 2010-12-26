@@ -348,7 +348,7 @@ bool Utility::SegmentIntersection(double s1x1, double s1y1, double s1x2, double 
 		return false;
 	}
 }
-bool Utility::SegmentIntersection(Coord& A, Coord& B, Coord& C, Coord& D, double& r, double& s)
+bool Utility::SegmentIntersection(const Coord& A, const Coord& B, const Coord& C, const Coord& D, double& r, double& s)
 {
 	// Cross product
 	Coord BA = B - A;

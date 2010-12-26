@@ -66,7 +66,7 @@ public:
 	int		GetNumColumns() const;							// 获取矩阵的列数
 	int		GetNumRows() const;								// 获取矩阵的行数
 	int     GetRowVector(int nRow, double* pVector) const;	// 获取矩阵的指定行矩阵
-	vector<double> GetRowVector(int nRow);
+    std::vector<double> GetRowVector(int nRow);
 	int     GetColVector(int nCol, double* pVector) const;	// 获取矩阵的指定列矩阵
 	double* GetData() const;								// 获取矩阵的值
 

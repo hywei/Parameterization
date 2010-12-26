@@ -1,9 +1,10 @@
 #include "non_linear_solver.h"
 #include "../Common/stopwatch.h"
 #include "../Numerical/MatrixConverter.h"
-#include "../hj_3rd/include/sparse/sparse_multi_cl.h"
+#include <hj_3rd/hjlib/sparse/sparse_multi_cl.h>
 #include <math.h>
 #include <float.h>
+#include <memory>
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////

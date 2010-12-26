@@ -12,7 +12,6 @@
 #include <sstream>
 #include "QGLViewer.h"
 #include "MainWindow.h"
-#include "../Param/CrossParam.h"
 
 RightPanel::RightPanel(MainWindow* _main_window, QWidget* parent) : QWidget(parent)
 {
@@ -92,16 +91,16 @@ void SimpleCrossParamTab::ComputeCrossParam()
 	if(main_window->glViewer_1->p_param == NULL ||
 		main_window->glViewer_2->p_param == NULL) return;
 
- 	PARAM::CrossParam cross_param(*(main_window->glViewer_1->p_param),
- 		*(main_window->glViewer_2->p_param));
+ 	// PARAM::CrossParam cross_param(*(main_window->glViewer_1->p_param),
+ 	// 	*(main_window->glViewer_2->p_param));
  
- 	cross_param.ComputeUintedDistortion();
-	cross_param.ComputeTexCoordOnSurface2();
+ 	// cross_param.ComputeUintedDistortion();
+	// cross_param.ComputeTexCoordOnSurface2();
 
-	const vector<int>& un_corresponding_vtx_array = cross_param.GetUnCorrespondingVtxArray();
-	main_window->glViewer_2->p_param->SetUnCorrespondingVtxArray(un_corresponding_vtx_array);
+	// const vector<int>& un_corresponding_vtx_array = cross_param.GetUnCorrespondingVtxArray();
+	// main_window->glViewer_2->p_param->SetUnCorrespondingVtxArray(un_corresponding_vtx_array);
 
-	main_window->glViewer_2->p_param->FaceVaule2VtxColor(cross_param.GetUnitedDistortion());
+	// main_window->glViewer_2->p_param->FaceVaule2VtxColor(cross_param.GetUnitedDistortion());
 
-	main_window->glViewer_2->p_param->SetMeshTexCoord(cross_param.GetTexCoordOnSurface2());
+	// main_window->glViewer_2->p_param->SetMeshTexCoord(cross_param.GetTexCoordOnSurface2());
 };

@@ -4,9 +4,9 @@
 #include "../ModelMesh/MeshModel.h"
 #include <boost/shared_ptr.hpp>
 
-#include "../hj_3rd/include/math/blas_lapack.h"
-#include "../hj_3rd/include/zjucad/matrix/lapack.h"
-#include "../hj_3rd/include/zjucad/matrix/io.h"
+#include <hj_3rd/hjlib/math/blas_lapack.h>
+#include <hj_3rd/zjucad/matrix/lapack.h>
+#include <hj_3rd/zjucad/matrix/io.h>
 
 namespace PARAM
 {
@@ -45,7 +45,7 @@ namespace PARAM
 		std::vector<Coord> tri_vert_coord_3d(3);
 		for(size_t k=0; k<3; ++k) tri_vert_coord_3d[k] = vert_coord_array[faces[k]];
 
-		std::vector<Coord2D>& local_coord = ComputeTriangleLocal2DCoord(tri_vert_coord_3d);
+		std::vector<Coord2D> local_coord = ComputeTriangleLocal2DCoord(tri_vert_coord_3d);
 
 		double area_2 = 2*(p_mesh->m_Kernel.GetFaceInfo().GetFaceArea())[fid];
 

@@ -33,8 +33,6 @@
 #include <iostream>
 #include <fstream>
 
-
-
 /* ================== Mesh Model I/O Functions ================== */
 
 // Constructor
@@ -152,16 +150,15 @@ bool MeshModelIO::StoreModel(const string& filename)
 bool MeshModelIO::OpenTmFile(const string& filename)
 {
     // Read data from file
-    FILE* fp;
-    fopen_s(&fp, filename.c_str(), "r");
+    FILE* fp = fopen(filename.c_str(), "r");    
 
     if(fp == NULL)
         return false;
 
     int nVertex, nFace, nReadFace;
-    fscanf_s(fp, "%d", &nVertex);
-    fscanf_s(fp, "%d", &nFace);
-    fscanf_s(fp, "%d", &nReadFace);
+    fscanf(fp, "%d", &nVertex);
+    fscanf(fp, "%d", &nFace);
+    fscanf(fp, "%d", &nReadFace);
 
     // Prepare for a new mesh model
     kernel->ClearData();
@@ -179,7 +176,7 @@ bool MeshModelIO::OpenTmFile(const string& filename)
     for(i = 0; i < nVertex; ++ i)
     {
         Coord& v = vCoord[i];
-        fscanf_s(fp, "%f %f %f", &coordPos0, &coordPos1, &coordPos2);
+        fscanf(fp, "%f %f %f", &coordPos0, &coordPos1, &coordPos2);
         v[0] = coordPos0;
         v[1] = coordPos1;
         v[2] = coordPos2;
@@ -198,7 +195,7 @@ bool MeshModelIO::OpenTmFile(const string& filename)
         IntArray& f = fIndex[i];
         f.resize(3);
 
-        fscanf_s(fp, "%d %d %d", &fv0, &fv1, &fv2);
+        fscanf(fp, "%d %d %d", &fv0, &fv1, &fv2);
         f[0] = fv0;
         f[1] = fv1;
         f[2] = fv2;
@@ -338,18 +335,17 @@ bool MeshModelIO::SavePly2File(const string& filename)
 bool MeshModelIO::OpenOffFile(const string& filename)
 {
     // Read data from file
-    FILE* fp;
-    fopen_s(&fp, filename.c_str(), "r");
+    FILE* fp = fopen(filename.c_str(), "r");
 
     if(fp == NULL)
         return false;
     char format[10];
-    fscanf_s(fp, "%s", format);
+    fscanf(fp, "%s", format);
 
     int nVertex, nFace, zero;
-    fscanf_s(fp, "%d", &nVertex);
-    fscanf_s(fp, "%d", &nFace);
-    fscanf_s(fp, "%d", &zero);
+    fscanf(fp, "%d", &nVertex);
+    fscanf(fp, "%d", &nFace);
+    fscanf(fp, "%d", &zero);
 
     // Prepare for a new mesh model
     kernel->ClearData();
@@ -366,7 +362,7 @@ bool MeshModelIO::OpenOffFile(const string& filename)
         Coord& v = vCoord[i];
         for(j = 0; j < 3; ++ j)
         {
-            fscanf_s(fp, "%f", &tempCoord);
+            fscanf(fp, "%f", &tempCoord);
             v[j] = tempCoord;
         }
     }
@@ -379,13 +375,13 @@ bool MeshModelIO::OpenOffFile(const string& filename)
     for(i = 0; i < nFace; ++ i)
     {
         IntArray& f = fIndex[i];
-        fscanf_s(fp, "%d", &n);
+        fscanf(fp, "%d", &n);
         f.resize(n);
 
         int vertexID;
         for(j = 0; j < n; ++ j)
         {
-            fscanf_s(fp, "%d", &vertexID);
+            fscanf(fp, "%d", &vertexID);
             f[j] = vertexID;
         }
     }
@@ -408,7 +404,6 @@ bool MeshModelIO::SaveOffFile(const string& filename)
     VertexInfo& vInfo = kernel->GetVertexInfo();
     CoordArray& arrCoord = vInfo.GetCoord();
     nVertex = arrCoord.size();
-	
     FaceInfo& fInfo = kernel->GetFaceInfo();
     PolyIndexArray& arrIndex = fInfo.GetIndex();
     nFace = arrIndex.size();
@@ -514,7 +509,7 @@ bool MeshModelIO::OpenObjFile(const string& filename)
 		// read the vertex information here.
 		if(str[0] == 'v' && str[1] == ' ') 
 		{
-			sscanf_s(str.c_str(), "%s %f %f %f", format, sizeof(format), &coordPos0, &coordPos1, &coordPos2);
+			sscanf(str.c_str(), "%s %f %f %f", format, &coordPos0, &coordPos1, &coordPos2);
 
 			Coord& v = vCoord[vn];
 			v[0] = coordPos0;
@@ -527,7 +522,7 @@ bool MeshModelIO::OpenObjFile(const string& filename)
 
 		if(str[0] == 'v' && str[1] == 't')
 		{
-			sscanf_s(str.c_str(), "%s %f %f", format, sizeof(format), &coordPos0, &coordPos1);
+			sscanf(str.c_str(), "%s %f %f", format, &coordPos0, &coordPos1);
 
 			TexCoord& v = tCoord[vt];
 			v[0] = coordPos0;
@@ -552,9 +547,9 @@ bool MeshModelIO::OpenObjFile(const string& filename)
 				cout << "bad polygon";
 				return false;
 			}
-			sscanf_s(str.c_str()+word_pos[1], "%d", &fv0);
-			sscanf_s(str.c_str()+word_pos[2], "%d", &fv1);
-			sscanf_s(str.c_str()+word_pos[3], "%d", &fv2);
+			sscanf(str.c_str()+word_pos[1], "%d", &fv0);
+			sscanf(str.c_str()+word_pos[2], "%d", &fv1);
+			sscanf(str.c_str()+word_pos[3], "%d", &fv2);
 						
 			IntArray& f = fIndex[fn];
 			f.resize(3);

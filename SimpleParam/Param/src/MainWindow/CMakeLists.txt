@@ -1,0 +1,65 @@
+include(${QT_USE_FILE})
+
+include_directories( $ENV{QTDIR}/include
+                     $ENV{QTDIR}/include/QtCore
+                     $ENV{QTDIR}/include/QtGui
+                     $ENV{QTDIR}/include/QtOpenGl
+                     ${PROJECT_SOURCE_DIR}/include
+                   )
+
+file(GLOB HEADERS *.h)
+file(GLOB SOURCES *.cpp)
+
+link_directories( $ENV{QTDIR}/lib
+                  ${PROJECT_SOURCE_DIR}/lib
+                )
+
+QT4_WRAP_CPP(MOCFILES ${HEADERS})
+
+add_executable( MainWindow ${HEADERS} ${SOURCES} ${MOCFILES})
+
+set ( DEPENDENCIES ui
+                   opengl
+                   param
+                   meshmodel
+                   numerical
+                   common
+                   graphite
+                   demo_shared )
+
+#add_dependencies( ${DEPENDENCIES})
+add_dependencies ( graphite
+                   common
+                   numerical
+                   meshmodel
+                   param
+                   opengl
+                   ui) 
+                   
+                   
+
+
+if(WIN32)
+	if(MSVC)
+		set ( OPENGL_LIBRARIES opengl32.lib glu32.lib glaux.lib)
+        set ( NUMERIC_LIBRARIES cblas.lib lapack.lib linalg.lib
+              sparseRelease.lib sparse.lib)
+	endif(MSVC)
+else ()
+	set ( OPENGL_LIBRARIES libGL.so libGLU.so)
+    set ( NUMERIC_LIBRARIES blas lapack sparse)
+    set ( HJ_3RD_LIBRARIES hj-sparse-solver hj-sparse-util)
+    set ( QT_USE_LIBRARIES QtCore QtGui QtOpenGL )
+endif ()
+
+
+target_link_libraries( MainWindow
+                       ${OPENGL_LIBRARIES}
+                       ${QT_USE_LIBRARIES}
+                       ${NUMERIC_LIBRARIES}
+                       ${HJ_3RD_LIBRARIES}
+                       ${DEPENDENCIES}
+                     )
+                  
+        
+                  

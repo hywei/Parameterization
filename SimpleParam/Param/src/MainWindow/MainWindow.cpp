@@ -2,11 +2,12 @@
 
 #include <QtGui>
 #include <sstream>
+#include <iostream>
 
 #include "CrossParamControl.h"
 #include "QGLViewer.h"
 
-#include "../Param/QuadParameter.h"
+#include "../Param/Parameter.h"
 #include "../Param/ParamDrawer.h"
 
 MainWindow::MainWindow(QWidget *parent):QMainWindow(parent)
@@ -45,7 +46,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent)
 	setWindowTitle("Cross Parameter");
 
 	connect(glViewer_1, SIGNAL(select_vertex()), this, SLOT(findCorrespondingOnB()));
-	connect(glViewer_2, SIGNAL(select_vertex()), this, SLOT(findCorrespondingOnA()));
+    //	connect(glViewer_2, SIGNAL(select_vertex()), this, SLOT(findCorrespondingOnA()));
 }
 
 void MainWindow::setStyle(QStyle* style)
@@ -98,10 +99,14 @@ void MainWindow::findCorrespondingOnB()
 	if(vid == -1) return;
 	int chart_id = glViewer_1->p_param->GetVertexChartID(vid);
 	PARAM::ParamCoord param_coord = glViewer_1->p_param->GetVertexParamCoord(vid);
+    // std::cout << "Surface A --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
 	PARAM::ChartParamCoord chart_param_coord(param_coord, chart_id);
 	PARAM::SurfaceCoord surface_coord;
 	glViewer_2->p_param->FindCorrespondingOnSurface(chart_param_coord, surface_coord);  
 	glViewer_2->p_param_drawer->SetSelectedVertCoord(surface_coord);
+
+    // int vid_2 = glViewer_2->p_param_drawer->GetSelectedVertID();
+    // std::cout << "Surface B --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" "<<param_coord.t_coord << std::endl;
 	glViewer_2->updateGL();
 }
 
@@ -144,16 +149,7 @@ void MainWindow::createActions()
 	connect(stateBarAct, SIGNAL(triggered()), this, SLOT(stateBar()));
 
 	// quad menu actions
-	loadEigenAct = new QAction(tr("Load EigenFiled"), this);
-	//connect(loadEigenAct, SIGNAL(triggered()), this, SLOT(loadEigenField()));
-
-	connectLineAct = new QAction(tr("Connect Line"), this);
-	//connect(connectLineAct, SIGNAL(triggered()), this, SLOT(connectLine()));
-
-
-	removeNoiseAct = new QAction(tr("Remove Noise"), this);
-	//connect(removeNoiseAct, SIGNAL(triggered()), this, SLOT(removeNoise()));
-
+	
 	// help menu actions
 	aboutAct = new QAction(tr("About"), this);
 	connect(aboutAct, SIGNAL(triggered()), this, SLOT(about()));
@@ -191,13 +187,7 @@ void MainWindow::createMenus()
 	viewMenu = menuBar()->addMenu(tr("&View"));
 	viewMenu->addAction(toolBarAct);
 	viewMenu->addAction(stateBarAct);
-
-	// create quad menu
-	quadMenu = menuBar()->addMenu(tr("&Quad"));
-	quadMenu->addAction(loadEigenAct);
-	quadMenu->addAction(connectLineAct);
-	quadMenu->addAction(removeNoiseAct);
-
+    
 	// create help menu
 	helpMenu = menuBar()->addMenu(tr("&Help"));
 	helpMenu->addAction(aboutAct);

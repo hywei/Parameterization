@@ -9,11 +9,14 @@
 #include "../Numerical/MeshSparseMatrix.h"
 #include "../Common/HSVColor.h"
 
-#include <gl/GLAux.h>
+#include <hj_3rd/zjucad/matrix/matrix.h>
 
+#include <GL/gl.h>
+#include <GL/glu.h>
 #include <iostream>
 #include <queue>
 #include <limits>
+
 
 namespace PARAM
 {
@@ -288,7 +291,7 @@ namespace PARAM
 							right_b -= row_data[k]*st_value;
 						}else
 						{
-							zjucad::matrix::matrix<double>& trans_mat = quad_trans_functor.GetTransMatrix(from_chart_id, to_chart_id);
+							zjucad::matrix::matrix<double> trans_mat = quad_trans_functor.GetTransMatrix(from_chart_id, to_chart_id);
 							double a = (st == 0) ? trans_mat(0, 0) : trans_mat(1, 0);
 							double b = (st == 0) ? trans_mat(0, 1) : trans_mat(1, 1);
 							double c = (st == 0) ? trans_mat(0, 2) : trans_mat(1, 2);
@@ -541,7 +544,7 @@ namespace PARAM
 	{
 		QuadTransFunctor tran_functor(p_quad_chart_creator);
 		
-		zjucad::matrix::matrix<double>& tran_mat = tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
+		zjucad::matrix::matrix<double> tran_mat = tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
 
 		to_param_coord.s_coord = tran_mat(0, 0)*from_param_coord.s_coord + 
 			tran_mat(0, 1)*from_param_coord.t_coord + tran_mat(0, 2);

@@ -1,15 +1,18 @@
 #include "ParamDrawer.h"
-#include "QuadChartCreator.h"
-#include "QuadParameter.h"
+#include "ParamPatch.h"
+#include "Parameter.h"
+#include "ChartCreator.h"
 #include "../ModelMesh/MeshModel.h"
 #include <vector>
 #include <limits>
-#include <GL/GLAux.h>
+
+#include <GL/gl.h>
+#include <GL/glu.h>
 
 namespace PARAM
 {
-	ParamDrawer::ParamDrawer(const QuadParameter& quad_param) 
-		: m_quad_param(quad_param) { m_selected_vert_coord = -1; }
+	ParamDrawer::ParamDrawer(const Parameter& _param) 
+		: m_parameter(_param) { m_selected_vert_coord = -1; }
 	ParamDrawer::~ParamDrawer(){}
 
 	void ParamDrawer::Draw() const
@@ -27,7 +30,9 @@ namespace PARAM
 
 		DrawPatchConner();
 		DrawSelectedVert();
-		
+        // std::cout << "Select Vertex : " << m_selected_vert_id << " : "<<
+        //     m_selected_vert_coord[0] << " " << m_selected_vert_coord[1] << ' '
+        //           << m_selected_vert_coord[2] << std::endl;
 		
 		//DrawUnCorrespondingVertex();	   
 
@@ -60,8 +65,8 @@ namespace PARAM
 
 	void ParamDrawer::DrawPatchConner() const
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();
-		boost::shared_ptr<QuadChartCreator> p_chart_creator = m_quad_param.GetChartCreator();
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();
+		boost::shared_ptr<ChartCreator> p_chart_creator = m_parameter.GetChartCreator();
 
 		if(p_mesh == NULL) return ;
 		if(p_chart_creator == NULL) return;
@@ -89,12 +94,12 @@ namespace PARAM
 		};
 
 
-		const std::vector<int>& conner_array = p_chart_creator->GetPatchConnerArray();
+		const std::vector<PatchConner>& conner_array = p_chart_creator->GetPatchConnerArray();
 		for(size_t k=0; k<conner_array.size(); ++k)
-		{
+		{            
 			int c = k%56;
 			glColor3ub(colors[c][0], colors[c][1], colors[c][2]);
-			int mesh_idx = conner_array[k];
+			int mesh_idx = conner_array[k].m_mesh_index;
 			DrawSphere(vCoord[mesh_idx]);
 		}
 
@@ -102,13 +107,13 @@ namespace PARAM
 
 	void ParamDrawer::DrawPatchEdge() const
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();
-		boost::shared_ptr<QuadChartCreator> p_quad_chart_creator = m_quad_param.GetChartCreator();
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();
+		boost::shared_ptr<ChartCreator> p_chart_creator = m_parameter.GetChartCreator();
 
 		if(p_mesh == NULL) return;
-		if(p_quad_chart_creator == NULL) return;
+		if(p_chart_creator == NULL) return;
 		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
-		const std::vector<PatchEdge>& patch_edge_array = p_quad_chart_creator->GetPatchEdgeArray();
+		const std::vector<PatchEdge>& patch_edge_array = p_chart_creator->GetPatchEdgeArray();
 
 		int colors[56][3] = 
 		{			  
@@ -148,9 +153,9 @@ namespace PARAM
 
 	void ParamDrawer::DrawOutRangeVertex() const
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();		
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();		
 		if(p_mesh == NULL) return ;
-		const std::vector<int>& out_range_vert_array = m_quad_param.GetOutRangeVertArray();
+		const std::vector<int>& out_range_vert_array = m_parameter.GetOutRangeVertArray();
 		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
 
 		glColor3ub(255, 0, 0);
@@ -164,7 +169,7 @@ namespace PARAM
 
 	void ParamDrawer::DrawUnCorrespondingVertex() const
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();
 		if(p_mesh == NULL) return;
 
 		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
@@ -179,9 +184,9 @@ namespace PARAM
 
 	void ParamDrawer::DrawUnSetFace() const
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();		
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();		
 		if(p_mesh == NULL) return ;
-		const std::vector<int>& unset_face_array = m_quad_param.GetUnSetFaceArray();
+		const std::vector<int>& unset_face_array = m_parameter.GetUnSetFaceArray();
 		const PolyIndexArray& face_list_array = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
 		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
 
@@ -213,7 +218,7 @@ namespace PARAM
 
 	int ParamDrawer::FindSelectedVertId(const Coord& select_coord)
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();
 		if(p_mesh == NULL) return -1;
 		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
 		int vert_num = p_mesh->m_Kernel.GetModelInfo().GetVertexNum();
@@ -244,7 +249,7 @@ namespace PARAM
 
 	void ParamDrawer::SetSelectedVertCoord(const SurfaceCoord& select_coord)
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();
 		if(p_mesh == NULL) return;
 
 		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
@@ -264,7 +269,7 @@ namespace PARAM
 
 	void ParamDrawer::DrawSphere(const Coord& center, double point_size) const
 	{
-		boost::shared_ptr<MeshModel> p_mesh = m_quad_param.GetMeshModel();
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();
 
 		double bRadius;
 		Coord c;

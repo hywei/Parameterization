@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <boost/shared_ptr.hpp>
-#include "../hj_3rd/include/zjucad/matrix/matrix.h"
+#include <hj_3rd/zjucad/matrix/matrix.h>
 
 namespace PARAM
 {

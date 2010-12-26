@@ -31,11 +31,10 @@
 #pragma once
 
 #include "Macro.h"
-#include <math.h>
+#include <cmath>
 #include <vector>
-
-//using namespace std;
-
+#include <string>
+#include <cstdio>
 
 
 /* ================== Various Indices ================== */
@@ -153,31 +152,31 @@ private:
 
 public:
     // Constructor
-    Coord2D::Coord2D()
+    Coord2D()
     {
         pos[0] = pos[1] = 0.0;
     }
     
-    Coord2D::Coord2D(double _x, double _y)
+    Coord2D(double _x, double _y)
     {
         pos[0] = _x;
         pos[1] = _y;
     }
     
-    Coord2D::Coord2D(double v[2])
+    Coord2D(double v[2])
     {
         pos[0] = v[0];
         pos[1] = v[1];
     }
     
-    Coord2D::Coord2D(const Coord2D &c)
+    Coord2D(const Coord2D &c)
     {
         pos[0] = c.pos[0];
         pos[1] = c.pos[1];
     }
     
     // Destructor
-    Coord2D::~Coord2D()
+    ~Coord2D()
     {
         
     }
@@ -229,25 +228,24 @@ private:
     
 public:
     // Constructor
-    Color::Color()
+    Color()
     {
         rgb[0] = rgb[1] = rgb[2] = 0.0;
     }
     
-    Color::Color(int r, int g, int b)               // r,g,b - [0,   255]
+    Color(int r, int g, int b)               // r,g,b - [0,   255]
     {
         setColor(r, g, b);
     }
     
-    Color::Color(double r, double g, double b)      // r,g,b - [0.0, 1.0]
+    Color(double r, double g, double b)      // r,g,b - [0.0, 1.0]
     {
         setColor(r, g, b);
     }
     
     // Destructor
-    Color::~Color()
-    {
-        
+    ~Color()
+    {       
     }
 
     // Initializer
@@ -296,14 +294,14 @@ class CCurvature
 {
 public:
     // Constructor
-    CCurvature::CCurvature()
+    CCurvature()
 	{
 		m_kmax = 0;
 		m_kmin = 0;
 	}
 
 	// Destructor
-	CCurvature::~CCurvature()
+	~CCurvature()
 	{
 	}
 

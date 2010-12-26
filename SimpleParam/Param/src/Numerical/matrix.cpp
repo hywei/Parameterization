@@ -6,12 +6,13 @@
 // 周长发编制, 2002/8
 //////////////////////////////////////////////////////////////////////
 
-#include "Matrix.h"
+#include "matrix.h"
 #include "Rotation.h"
 #include  <iostream>   
 #include  <string>   
 #include  <fstream>
 #include <assert.h>
+#include <cstring>
 using namespace std;   
 
 //////////////////////////////////////////////////////////////////////

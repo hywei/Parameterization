@@ -1,13 +1,13 @@
-#include <vld.h>
 #include "MainWindow.h"
 #include <QMainWindow>
 #include <QtOpenGL>
+#include <iostream>
 
 #include "arthurstyle.h"
 
-int main(int argc, char *argv[])
-{
 
+int main(int argc, char *argv[])
+{    
 	QApplication::setColorSpec( QApplication::CustomColor );
 	QApplication app(argc,argv);
 
@@ -17,11 +17,11 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	// create widget
+    MainWindow mainWin;
 	QStyle *arthurStyle = new ArthurStyle();
-	MainWindow mainWin;
 	mainWin.setStyle(arthurStyle);
 
-	mainWin.show();
+    mainWin.show();
 
 	return app.exec();
 }

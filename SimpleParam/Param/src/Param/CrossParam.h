@@ -2,7 +2,7 @@
 #define CROSSPARAM_H_
 
 #include "QuadParam.h"
-#include "../hj_3rd/include/zjucad/matrix/matrix.h"
+#include <hj_3rd/zjucad/matrix/matrix.h>
 
 namespace PARAM
 {

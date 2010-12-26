@@ -5,7 +5,8 @@
 class QGLWidget;
 #include "../Common/BasicDataType.h"
 #include "../Numerical/matrix.h"
-#include <gl/GLAux.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
 
 /* ================== Macros ================== */
 

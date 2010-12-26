@@ -1,13 +1,14 @@
 #include "linear_solver.h"
 #include "../Common/stopwatch.h"
 #include "../Numerical/MatrixConverter.h"
-#include "../hj_3rd/include/sparse/sparse_multi_cl.h"
+//#include <hj_3rd/hjlib/sparse/sparse_multi_cl.h>
 #include <assert.h>
 #include <float.h>
 #include <set>
 #include <fstream>
-#include<stdio.h> 
-#include<process.h>
+#include <stdio.h> 
+#include <memory>
+//#include <process.h>
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -143,76 +144,76 @@ void LinearSolver::end_equation()
 }
 void  LinearSolver::solve_from_file()
 {
-	write_to_file("c:\\solver\\ata.tmp", "c:\\solver\\atb.tmp");
+	// write_to_file("c:\\solver\\ata.tmp", "c:\\solver\\atb.tmp");
 
-	printf("ouput to file.\n");
+	// printf("ouput to file.\n");
 
-	/*
-	PROCESS_INFORMATION piProcInfo; 
-	STARTUPINFO siStartInfo;
+	// /*
+	// PROCESS_INFORMATION piProcInfo; 
+	// STARTUPINFO siStartInfo;
 
-	// Set up members of STARTUPINFO structure.
-	siStartInfo.cb = sizeof(STARTUPINFO); 
-	siStartInfo.lpReserved = NULL;
-	siStartInfo.lpReserved2 = NULL; 
-	siStartInfo.cbReserved2 = 0;
-	siStartInfo.lpDesktop = NULL; 
-	siStartInfo.dwFlags = 0;
+	// // Set up members of STARTUPINFO structure.
+	// siStartInfo.cb = sizeof(STARTUPINFO); 
+	// siStartInfo.lpReserved = NULL;
+	// siStartInfo.lpReserved2 = NULL; 
+	// siStartInfo.cbReserved2 = 0;
+	// siStartInfo.lpDesktop = NULL; 
+	// siStartInfo.dwFlags = 0;
 
-	CreateProcess(NULL, (LPWSTR)"c:\\solver\\solver.exe ata.tmp atb.tmp mx.tmp",
-		NULL,NULL,0,0,NULL,NULL,&siStartInfo, &piProcInfo);
+	// CreateProcess(NULL, (LPWSTR)"c:\\solver\\solver.exe ata.tmp atb.tmp mx.tmp",
+	// 	NULL,NULL,0,0,NULL,NULL,&siStartInfo, &piProcInfo);
 
-	// Wait for the processs to finish
-	DWORD rc = WaitForSingleObject(
-		piProcInfo.hProcess, // process handle
-		INFINITE); */
+	// // Wait for the processs to finish
+	// DWORD rc = WaitForSingleObject(
+	// 	piProcInfo.hProcess, // process handle
+	// 	INFINITE); */
 
-	char *argv[] = {
-		"c:\\solver\\solver.exe",
-		"c:\\solver\\ata.tmp",
-		"c:\\solver\\atb.tmp",
-		"c:\\solver\\mx.tmp",
-		0
-	};
-	int rst =spawnvp(_P_WAIT, "c:\\solver\\solver.exe", argv);
+	// char *argv[] = {
+	// 	"c:\\solver\\solver.exe",
+	// 	"c:\\solver\\ata.tmp",
+	// 	"c:\\solver\\atb.tmp",
+	// 	"c:\\solver\\mx.tmp",
+	// 	0
+	// };
+	// int rst =spawnvp(_P_WAIT, "c:\\solver\\solver.exe", argv);
 
-	printf("solve = %d\n", rst);
+	// printf("solve = %d\n", rst);
 
-	printf("read from file.\n");
-	//
-	ifstream ifs("c:\\solver\\mx.tmp", std::ios::binary);
-	if (ifs.fail())
-	{
-		printf("can't load mx.\n");
-	}
-	zjucad::matrix::matrix<double> mx_matrix;
-	printf("%d\n", __LINE__);
-	read(ifs, mx_matrix);
-	printf("%d\n", __LINE__);
+	// printf("read from file.\n");
+	// //
+	// ifstream ifs("c:\\solver\\mx.tmp", std::ios::binary);
+	// if (ifs.fail())
+	// {
+	// 	printf("can't load mx.\n");
+	// }
+	// zjucad::matrix::matrix<double> mx_matrix;
+	// printf("%d\n", __LINE__);
+	// read(ifs, mx_matrix);
+	// printf("%d\n", __LINE__);
 
-	vector<double> m_x_(mx_matrix.size());
-	printf("%d\n", __LINE__);
-	for (int i = 0; i < mx_matrix.size(); i++)
-	{
-		m_x_[i] = mx_matrix(i);
-	}
-	printf("%d\n", __LINE__);
+	// vector<double> m_x_(mx_matrix.size());
+	// printf("%d\n", __LINE__);
+	// for (int i = 0; i < mx_matrix.size(); i++)
+	// {
+	// 	m_x_[i] = mx_matrix(i);
+	// }
+	// printf("%d\n", __LINE__);
 
-	printf("m_xc size = %d\n", m_xc_.size());
-	printf("m_x_ size = %d\n", m_x_.size());
+	// printf("m_xc size = %d\n", m_xc_.size());
+	// printf("m_x_ size = %d\n", m_x_.size());
 
-	//
-	for(int i=0; i<nb_free_variables_; i++) {
-		m_xc_[i] = m_x_[i] ;
-	}
+	// //
+	// for(int i=0; i<nb_free_variables_; i++) {
+	// 	m_xc_[i] = m_x_[i] ;
+	// }
 
-	//	
-	update_variables();
+	// //	
+	// update_variables();
 
-	if (m_is_printf_info){
-		printf("after solving: \n");
-		//print_f(m_x_);
-	}
+	// if (m_is_printf_info){
+	// 	printf("after solving: \n");
+	// 	//print_f(m_x_);
+	//}
 }
 void LinearSolver::solve()
 {
@@ -364,11 +365,12 @@ void LinearSolver::set_solve_matrix()
 				pair<int, double>& var_ = cur_equ[j];
 				if (is_free(var_.first)) 
 				{
-					if (_isnan(var_.second))
-					{
-						printf("is nan.\n");
-						size_t aaaaaa = 6;
-					}
+                    // Warning : the following comment by hywei, there may be error
+					// if (_isnan(var_.second))
+					// {
+					// 	printf("is nan.\n");
+					// 	size_t aaaaaa = 6;
+					//}
 					solve_matrix.AddElement(row_, var_.first, var_.second);
 				}
 			}
@@ -423,11 +425,12 @@ void LinearSolver::set_solve_b()
 
 		if (lock_num < cur_equ.size())
 		{
-			if (_isnan(sum_b))
-			{
-				printf("is nan b.\n");
-				size_t aaaaaa = 6;
-			}
+          // Warning: the following codes commented by hywei, there may be error 
+			// if (_isnan(sum_b))
+			// {
+			// 	printf("is nan b.\n");
+			// 	size_t aaaaaa = 6;
+			// }
 			m_solve_b_vec.push_back(sum_b);
 			
 		}

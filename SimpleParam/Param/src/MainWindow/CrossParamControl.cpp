@@ -9,17 +9,17 @@ CrossParamControl::CrossParamControl(QGLViewer* _gl_viewer_1, QGLViewer* _gl_vie
 {
 	m_gl_viewer_1 = _gl_viewer_1;
 	m_gl_viewer_2 = _gl_viewer_2;
-
-	p_cross_parameter = boost::shared_ptr<PARAM::CrossParameter> (new 
-		PARAM::CrossParameter(*(m_gl_viewer_1->p_param), *(m_gl_viewer_2->p_param)));
-
+    
+    //	p_cross_parameter = boost::shared_ptr<PARAM::CrossParameter> (new
+    //		PARAM::CrossParameter(*(m_gl_viewer_1->p_param), *(m_gl_viewer_2->p_param)));
+    
 	m_surface_1_group = CreateSurface1Group(this);
 	m_surface_2_group = CreateSurface2Group(this);
 	m_cross_param_group = CreateCrossParamGroup(this);
 	m_texture_setting_group = CreateTextureGroup(this);
 	m_visualization_group = CreateVisualizationGroup(this);
     m_corresponding_group = CreateCorrespondingGroup(this);
-
+    
 	CreateMainLayout();
 }
 
@@ -28,7 +28,7 @@ QGroupBox* CrossParamControl::CreateSurface1Group(QWidget* parent /* = 0 */)
 	QGroupBox* surface_1_group = new QGroupBox(parent);
 	surface_1_group->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
 	surface_1_group->setTitle(tr("Surface 1 Setting"));
-
+    
 	/// child widgets
 	QPushButton* load_surface_1_mesh = new QPushButton(surface_1_group);
 	load_surface_1_mesh->setText(tr("Load Surface 1 Mesh"));
@@ -152,7 +152,7 @@ QGroupBox* CrossParamControl::CreateVisualizationGroup(QWidget* parent /* = 0 */
 // 	QCheckBox* single_param_distortion = new QCheckBox(param_distortion);
 // 	QCheckBox* united_param_distortion = new QCheckBox(param_distortion);
 
-	patch_layout->setText(tr("Patch Layout"));
+//	patch_layout->setText(tr("Patch Layout"));
 	patch_conner->setText(tr("Patch Conner"));
 	patch_edge ->setText(tr("Patch Edge"));
 	patch_face ->setText(tr("Patch Face"));
@@ -187,9 +187,9 @@ QGroupBox* CrossParamControl::CreateVisualizationGroup(QWidget* parent /* = 0 */
 //	visual_layout->addWidget(united_param_distortion);
 
 	/// connects
-	connect(patch_conner, SIGNAL(clicked()), this, SLOT(DisplayPatchConner()));
-	connect(patch_edge, SIGNAL(clicked()), this, SLOT(DisplayPatchEdge()));
-	connect(patch_face, SIGNAL(clicked()), thsi, SLOT(DisplayPatchFace()));
+	//connect(patch_conner, SIGNAL(clicked()), this, SLOT(DisplayPatchConner()));
+      //connect(patch_edge, SIGNAL(clicked()), this, SLOT(DisplayPatchEdge()));
+      //connect(patch_face, SIGNAL(clicked()), thsi, SLOT(DisplayPatchFace()));
 
 	return visual_group;
 }
@@ -214,12 +214,10 @@ QGroupBox* CrossParamControl::CreateCorrespondingGroup(QWidget* parent /* = 0 */
 	QPushButton* corresponding = new QPushButton(tr("Corresponding"));
 	connect(corresponding, SIGNAL(clicked()), m_gl_viewer_1, SLOT(SetParamDrawerSelectVertMode()));
 	connect(corresponding, SIGNAL(clicked()), m_gl_viewer_2, SLOT(SetParamDrawerCorrespondMode()));
-
+    
 	/// layout
 	QVBoxLayout* corresponding_layout = new QVBoxLayout(corresponding_group);
 	corresponding_layout->addWidget(corresponding);
-
-
 	return corresponding_group;
 }
 
@@ -228,19 +226,17 @@ void CrossParamControl::ComputeCrossParam()
 	if(m_gl_viewer_1 == 0 || m_gl_viewer_2 == 0) return;
 	if(m_gl_viewer_1->p_param == 0 || m_gl_viewer_2->p_param == 0) return;
 
-	p_cross_parameter->FindCorrespondingAB();
+	// p_cross_parameter->FindCorrespondingAB();
 	
-	m_gl_viewer_1->p_param_drawer->SetUnCorrespondingVertArray(p_cross_parameter->GetUnCorrespondingVertArrayOnA());
-	
+	// m_gl_viewer_1->p_param_drawer->SetUnCorrespondingVertArray(p_cross_parameter->GetUnCorrespondingVertArrayOnA());
 }
 
 void CrossParamControl::OptimizeCrossParam()
 {
 //	if(p_cross_param == NULL) return;
-
-// 	boost::shared_ptr<PARAM::CrossParamHarmonicOptimizer> p_cp_optimizer(new 
+// 	boost::shared_ptr<PARAM::CrossParamHarmonicOptimizer> p_cp_optimizer(new
 // 		PARAM::CrossParamHarmonicOptimizer(*p_cross_param.get()));
-// 
+//
 // 	p_cp_optimizer->Optimize();
 }
 

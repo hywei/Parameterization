@@ -29,13 +29,13 @@
 // Defining the input/output (I/O) functions of the kernel components of the mesh model
 // Supporting various 3D model files, including .tm, .obj, .off, etc
 
-
+#ifndef MESHMODELIO_H_
+#define MESHMODELIO_H_
 
 #include "MeshModelKernel.h"
 #include "../Common/Utility.h"
 #include "../Common/TriangularMesh.h"
 #include <boost/shared_ptr.hpp>
-#pragma once
 
 
 class MeshModelIO
@@ -83,3 +83,5 @@ public:
 	*/
 	bool LoadTriangularMesh(boost::shared_ptr<const tri_mesh_3d> p_mesh);
 };
+
+#endif

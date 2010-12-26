@@ -1,7 +1,7 @@
 #include "QuadTransFunctor.h"
 #include "QuadChartCreator.h"
-#include "../hj_3rd/include/math/blas_lapack.h"
-#include "../hj_3rd/include/zjucad/matrix/lapack.h"
+#include <hj_3rd/hjlib/math/blas_lapack.h>
+#include <hj_3rd/zjucad/matrix/lapack.h>
 
 #include <map>
 #include <set>

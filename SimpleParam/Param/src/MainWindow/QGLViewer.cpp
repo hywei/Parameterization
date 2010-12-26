@@ -7,7 +7,7 @@
 #include "QGLViewer.h"
 #include <QGLFramebufferObject>
 
-#include <Windows.h>
+
 #include <string>
 #include <fstream>
 // --------------------
@@ -16,7 +16,7 @@
 #include "../OpenGL/GLContext.h"
 #include "../UI/UIHandler.h"
 #include "../Common/Utility.h"
-#include "../Param/QuadParameter.h"
+#include "../Param/Parameter.h"
 #include "../Param/ParamDrawer.h"
 using namespace Qt;
 
@@ -42,7 +42,6 @@ QGLViewer::QGLViewer( QGLFormat& _fmt, QWidget* _parent )
 : QGLWidget( _fmt, _parent )
 {
 	init();
-
 }
 
 
@@ -55,89 +54,81 @@ void QGLViewer::init(void)
 	setFocusPolicy(Qt::StrongFocus);
 	setAcceptDrops( true );
 	setCursor(PointingHandCursor);
-
+    
 	createPopMenu();
-	
+    
 	p_mesh = boost::shared_ptr<MeshModel> (new MeshModel);
-
 	p_opengl = boost::shared_ptr<COpenGL> (new COpenGL);
 	p_opengl->OnCreate(this);
 	p_opengl->OnInit();
-	
 	p_UIHander = boost::shared_ptr<CUIHandler> (new CUIHandler);
 	p_UIHander->Init(this);
-	p_UIHander->GetMouseMode() = MOUSE_MODE_SPIN;	
-
+	p_UIHander->GetMouseMode() = MOUSE_MODE_SPIN;
 	p_util = boost::shared_ptr<Utility> (new Utility);
-
-	p_param = boost::shared_ptr<PARAM::QuadParameter> (new PARAM::QuadParameter(p_mesh));
-
-	p_param_drawer = boost::shared_ptr<PARAM::ParamDrawer> (new 
+	p_param = boost::shared_ptr<PARAM::Parameter> (new PARAM::Parameter(p_mesh));
+	p_param_drawer = boost::shared_ptr<PARAM::ParamDrawer> (new
 		PARAM::ParamDrawer(*p_param.get()));
 }
 
 
 void QGLViewer::createPopMenu()
 {
-
 	// popup menu
 	popup_menu_ = new QMenu(this);
-
 	QActionGroup* renderAction = new QActionGroup(this);
 	QAction *a ;
-
+    
 	a = popup_menu_->addAction(tr("Solid Smooth"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingSolidSmooth()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("Solid Flat"));
 	a->setCheckable(true);
 	a->setChecked(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingSolidFlat()));
 	renderAction->addAction(a);
-
-
+    
 	a = popup_menu_->addAction(tr("Solid Wireframe"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingSolidWireframe()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("Transparent"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingTransparent()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("Wireframe"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingWireframe()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("Vertices"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingVertices()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("Texture"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingTexture()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("Parameter Texture"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingParamTexture()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("VertexColor"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingVertexColor()));
 	renderAction->addAction(a);
-
+    
 	a = popup_menu_->addAction(tr("FaceColor"));
 	a->setCheckable(true);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingFaceColor()));
 	renderAction->addAction(a);
-
+    
 	popup_menu_->addSeparator();
 	a = new QAction(tr("Bounding Box"), this);
 	connect(a, SIGNAL(triggered()), this, SLOT(RenderingBoundingBox()));
@@ -145,7 +136,6 @@ void QGLViewer::createPopMenu()
 	a->setCheckable(true);
 	a->setChecked(true);
 }
-
 // ----------------- public slots ------------------
 void QGLViewer::loadMeshModel()
 {
@@ -162,32 +152,24 @@ void QGLViewer::loadMeshModel()
 		// add your codes here
 		p_mesh->ClearData();
 		p_mesh->AttachModel(f);
-	 	 		
 		Coord center;
 		double radius;
 		p_mesh->m_Kernel.GetModelInfo().GetBoundingSphere(center, radius);
 		p_opengl->OnInit();
 		p_opengl->SetObjectInfo(center[0], center[1], center[2], radius);
 		p_opengl->OnResize(this->width(), this->height());
-
-
-
 // 		p_param->SetMeshTexCoordForGrid16();
-
 		p_opengl->Create2DTexture(1);
-
 		updateGL();
 	}
 }
-
 int QGLViewer::loadTextureImage()
 {
 	QString fileName = QFileDialog::getOpenFileName(
-		this, 
+		this,
 		tr("Open Texture Image File"),
 		tr(""),
 		tr("Image file(*.bmp);;"));
-
 	std::string f = std::string((const char *)fileName.toLocal8Bit());
 	if(f.size() != 0)
 	{
@@ -196,7 +178,6 @@ int QGLViewer::loadTextureImage()
 			p_opengl->OnBeginPaint();
 			p_mesh->CreateTexture(f);
 			p_opengl->OnEndPaint();
-
 			updateGL();
 		}else
 			return -1;
@@ -205,41 +186,34 @@ int QGLViewer::loadTextureImage()
 	}
 	return 0;
 }
-
 int QGLViewer::loadQuadFile()
 {
 	QString fileName = QFileDialog::getOpenFileName(
-		this, 
-		tr("Open Quad File"), 
+		this,
+		tr("Open Quad File"),
 		tr(""),
 		tr("Quad file(*.quad);;")
 		);
-
 	std::string f = std::string((const char *) fileName.toLocal8Bit());
 	if(f.size() != 0)
 	{
 		if(p_mesh)
-		{			
-			p_param->LoadQuadFile(f);
+		{
+			p_param->LoadPatchFile(f);
 			p_param->ComputeParamCoord();
-
 		}else
 			return -1;
 	}else{
 		return -1;
 	}
-
 	return 0;
 }
-
-
 void QGLViewer::CreateSquareTexture()
 {
 	if(p_opengl == NULL) return;
 	p_opengl->Create2DTexture(1);
 	updateGL();
 }
-
 void QGLViewer::CreateLineTexture()
 {
 	if(p_opengl == NULL) return;
@@ -258,7 +232,7 @@ void QGLViewer::SetParamDrawerSelectVertMode()
 {
 	if(p_param_drawer == NULL) return;
 	p_UIHander->GetMouseMode() = MOUSE_MODE_SELECT_VERTEX;
-	p_param_drawer->SetDrawMode(PARAM::ParamDrawer::DrawMode::DRAWSELECTION);
+	p_param_drawer->SetDrawMode(PARAM::ParamDrawer::DRAWSELECTION);
 
 	updateGL();
 }
@@ -266,10 +240,9 @@ void QGLViewer::SetParamDrawerSelectVertMode()
 void QGLViewer::SetParamDrawerCorrespondMode()
 {
 	if(p_param_drawer == NULL) return;
-	p_param_drawer->SetDrawMode(PARAM::ParamDrawer::DrawMode::DRAWSELECTION);
+	p_param_drawer->SetDrawMode(PARAM::ParamDrawer::DRAWSELECTION);
 	updateGL();
 }
-
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
@@ -335,7 +308,6 @@ void QGLViewer::RenderingBoundingBox()
 	// add your codes here
 	p_util->ToggleFlag(p_mesh->m_Render.State(), RENDER_MODEL_BOUNDING_BOX);
 }
-
 void QGLViewer::mouseSpin()
 {
 	// add your codes here
@@ -447,43 +419,26 @@ void QGLViewer::initializeGL()
 	glLoadIdentity();
 
 }
-
-
-
-
 void QGLViewer::resizeGL( int _w, int _h )
 {
 	assert(p_opengl!=NULL);
 	p_opengl->OnResize(_w, _h);
 }
-
-
 //----------------------------------------------------------------------------
-
-
 void QGLViewer::paintGL()
 {
 	p_opengl->OnBeginPaint();
 	p_opengl->DetectOpenGLError();
-	
 	p_opengl->SetModelView();
-
 	if(p_mesh) p_mesh->DrawModel();
-
 //	if(p_param) p_param->Draw();
 	if(p_param_drawer) p_param_drawer->Draw();
-
 	p_opengl->DetectOpenGLError();
-
 	p_opengl->OnEndPaint();
 }
 
-
 //----------------------------------------------------------------------------
-
-
-void
-QGLViewer::mousePressEvent( QMouseEvent* _event )
+void QGLViewer::mousePressEvent( QMouseEvent* _event )
 {
 	int x = _event->x();
 	int y = _event->y();
@@ -492,7 +447,7 @@ QGLViewer::mousePressEvent( QMouseEvent* _event )
 	case RightButton:
 		popup_menu_->exec(QCursor::pos());
 		break;
-
+        
 	case LeftButton:
 		assert(p_UIHander);
 		p_UIHander->OnLButtonDown(_event->buttons(), x, y);
@@ -501,26 +456,19 @@ QGLViewer::mousePressEvent( QMouseEvent* _event )
 	default:
 		break;
 	}
-	
 	updateGL();
 }
-
-
 //----------------------------------------------------------------------------
-
 void QGLViewer::mouseMoveEvent( QMouseEvent* _event)
 {
 	int x = _event->x();
 	int y = _event->y();
-	
+    
 	p_UIHander->OnMouseMove(_event->buttons(), x, y);
 	updateGL();
-	
+    
 }
-
 //----------------------------------------------------------------------------
-
-
 void QGLViewer::mouseReleaseEvent( QMouseEvent*  _event  )
 {
 	int x = _event->x();
@@ -530,32 +478,24 @@ void QGLViewer::mouseReleaseEvent( QMouseEvent*  _event  )
 	case RightButton:
 		popup_menu_->exec(QCursor::pos());
 		break;
-
 	case LeftButton:
 		assert(p_UIHander);
 		p_UIHander->OnLButtonUp(_event->buttons(), x, y);
 		break;
-
 	default:
 		break;
 	}
 	updateGL();
 }
 
-
 //-----------------------------------------------------------------------------
-
-
 void QGLViewer::wheelEvent(QWheelEvent* _event)
 {
 	int x = _event->x();
 	int y = _event->y();
 	p_UIHander->OnMouseWheel(_event->modifiers(), _event->delta(), x, y);
-
 	updateGL();
 }
-
-
 //----------------------------------------------------------------------------
 void QGLViewer::keyPressEvent( QKeyEvent* _event)
 {

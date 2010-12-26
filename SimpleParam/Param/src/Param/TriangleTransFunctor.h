@@ -2,7 +2,7 @@
 #define TRIANGLETRANSFUNCTOR_H_
 
 #include "../ModelMesh/MeshModel.h"
-#include "../hj_3rd/include/zjucad/matrix/matrix.h"
+#include <hj_3rd/zjucad/matrix/matrix.h>
 
 namespace PARAM
 {

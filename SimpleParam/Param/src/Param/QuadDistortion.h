@@ -1,7 +1,7 @@
 #ifndef QUADDISTORTION_H_
 #define QUADDISTORTION_H_
 
-#include "..\hj_3rd\include\zjucad\matrix\matrix.h"
+#include <hj_3rd/zjucad/matrix/matrix.h>
 #include <vector>
 
 namespace PARAM
