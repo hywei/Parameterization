@@ -192,15 +192,18 @@ int QGLViewer::loadQuadFile()
 		this,
 		tr("Open Quad File"),
 		tr(""),
-		tr("Quad file(*.quad);;")
-		);
+		tr("Quad file(*.quad);;"
+        "All files(*)"));
 	std::string f = std::string((const char *) fileName.toLocal8Bit());
 	if(f.size() != 0)
 	{
 		if(p_mesh)
 		{
 			p_param->LoadPatchFile(f);
-			p_param->ComputeParamCoord();
+            p_param->ComputeParamCoord();
+
+            p_param_drawer->SetUnCorrespondingVertArray(p_param->GetOutRangeVertArray());
+            
 		}else
 			return -1;
 	}else{

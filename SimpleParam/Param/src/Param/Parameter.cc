@@ -7,12 +7,13 @@
 #include "../Numerical/linear_solver.h"
 #include "../Numerical/MeshSparseMatrix.h"
 #include <hj_3rd/zjucad/matrix/matrix.h>
+#include <hj_3rd/zjucad/matrix/io.h>
 
 #include <iostream>
 #include <queue>
 #include <set>
 #include <limits>
-
+#include <fstream>
 
 namespace PARAM
 {
@@ -41,22 +42,52 @@ namespace PARAM
 		}
         
 		SetInitFaceChartLayout();
-		SetInitVertChartLayout();	
+		SetInitVertChartLayout();        
 
+        // TransFunctor tran_functor(p_chart_creator);
+        // zjucad::matrix::matrix<double> trans_mat;
+                
+        // trans_mat = tran_functor.GetTransMatrix(0, 0);
+        // std::cout << trans_mat << std::endl;
+
+        
+        // trans_mat = tran_functor.GetTransMatrix(0, 1);
+        // std::cout << trans_mat << std::endl;
+
+        // ParamCoord param_coord(0.5, 0.866);
+        // TransParamCoordBetweenCharts(0, 1, ParamCoord(0.5, 0.866), param_coord);
+        // std::cout << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
+        
+        // trans_mat = tran_functor.GetTransMatrix(1, 2);
+        // std::cout << trans_mat << std::endl;
+
+        // TransParamCoordBetweenCharts(0, 7, ParamCoord(0, 0), param_coord);
+        // std::cout << 0 << " " << 7 <<" : " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
+
+        // TransParamCoordBetweenCharts(0, 8, ParamCoord(0.5, 0.866025), param_coord);
+        // std::cout << 0 << " " << 8 <<" : " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl;
+
+        // TransParamCoordBetweenCharts(0, 6, ParamCoord(1, 0), param_coord);
+        // std::cout << 0 << " " << 6 << " : " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl;
+
+        
 		CMeshSparseMatrix lap_mat;
 		SetLapMatrixCoef(p_mesh, lap_mat);
 
 		
-		int loop_num = 5;
+		int loop_num = 8;
 		for(int k=0; k<loop_num; ++k)
 		{
 			SolveParameter(lap_mat);
 			if(k < loop_num-1)
 			{
+                GetOutRangeVertices(m_out_range_vert_array);
 				AdjustPatchBoundary();
 			}
 		}	   		
 
+        GetOutRangeVertices(m_out_range_vert_array);
+        
 		ResetFaceChartLayout();
 		SetMeshFaceTextureCoord();
 
@@ -74,14 +105,21 @@ namespace PARAM
 		const std::vector<ParamPatch>& patch_array = p_chart_creator->GetPatchArray();
 		for(size_t k=0; k<patch_array.size(); ++k)
 		{
-			const ParamPatch& quad_patch = patch_array[k];
-			const std::vector<int>& faces_in_patch = quad_patch.m_face_index_array;
+			const ParamPatch& param_patch = patch_array[k];
+			const std::vector<int>& faces_in_patch = param_patch.m_face_index_array;
 			for(size_t i=0; i<faces_in_patch.size(); ++i)
 			{
 				int fid = faces_in_patch[i];
 				m_face_chart_array[fid] = k;
 			}
 		}
+
+        ofstream fout("temp.txt");
+        for(size_t k=0; k<face_num; ++k){
+            fout << m_face_chart_array[k] <<" ";
+        }
+        fout << std::endl;
+        fout.close();
 	}
 
 	void Parameter::SetInitVertChartLayout()
@@ -108,6 +146,13 @@ namespace PARAM
 			}
 			m_vert_chart_array[vid] = chart_id;
 		}
+
+        ofstream fout("temp.txt");
+        for(int k=0; k<vert_num; ++k){
+            fout << m_vert_chart_array[k] << ' ';
+        }
+        fout << std::endl;
+        fout.close();
 	}
    
 	void Parameter::SetBoundaryVertexParamValue()
@@ -197,6 +242,12 @@ namespace PARAM
 		vector<int> vari_index_mapping;
 		SetVariIndexMapping(vari_index_mapping);
 		SetBoundaryVertexParamValue();
+        
+        // for(size_t k=0; k<m_vert_param_coord_array.size(); ++k){
+        //     if(vari_index_mapping[k] == -1)
+        //         std::cout << m_vert_chart_array[k] <<" " <<  m_vert_param_coord_array[k].s_coord << ' ' <<
+        //             m_vert_param_coord_array[k].t_coord << std::endl;
+        // }
 		
 		int vari_num = (int)vari_index_mapping.size()*2;
 
@@ -225,7 +276,7 @@ namespace PARAM
 					int col_vert = row_index[k];
 					int from_chart_id = m_vert_chart_array[col_vert];
 					int var_index = vari_index_mapping[col_vert];
-
+                    
 					if(from_chart_id == to_chart_id)
 					{
 						if( var_index == -1)
@@ -248,11 +299,18 @@ namespace PARAM
 							right_b -= row_data[k]*st_value;
 						}else
 						{
-							zjucad::matrix::matrix<double> trans_mat = trans_functor.GetTransMatrix(from_chart_id, to_chart_id);
+                            
+                            zjucad::matrix::matrix<double> trans_mat = trans_functor.GetTransMatrix(from_chart_id, to_chart_id);
 							double a = (st == 0) ? trans_mat(0, 0) : trans_mat(1, 0);
 							double b = (st == 0) ? trans_mat(0, 1) : trans_mat(1, 1);
 							double c = (st == 0) ? trans_mat(0, 2) : trans_mat(1, 2);
-							assert( fabs(a) < LARGE_ZERO_EPSILON || fabs(b) < LARGE_ZERO_EPSILON);
+                            
+                            
+                            // if(!(fabs(a) < LARGE_ZERO_EPSILON || fabs(b) < LARGE_ZERO_EPSILON) ){
+                            //     std::cout << from_chart_id <<" " << to_chart_id << std::endl;
+                            //     std::cout << a << " " << b <<" " << c << std::endl;
+                            // }
+                            
 							///! a*u + b*v + c
 							if(!(fabs(a) < LARGE_ZERO_EPSILON))
 							{
@@ -284,13 +342,18 @@ namespace PARAM
 				m_vert_param_coord_array[vid].t_coord = linear_solver.variable(vari_index*2+1).value();
 			}
 		}
-		
+
+        ofstream fout ("parame.txt");
+        for(size_t k=0; k<m_vert_param_coord_array.size(); ++k){
+            fout <<  m_vert_param_coord_array[k].s_coord << ' ' <<
+                m_vert_param_coord_array[k].t_coord << std::endl;
+        }
+        fout.close();
+
 	}
 
 	void Parameter::SetVariIndexMapping(std::vector<int>& vari_index_mapping)
 	{
-		const std::vector<PatchConner>& patch_conner_array = p_chart_creator->GetPatchConnerArray();
-
 		int vert_num = p_mesh->m_Kernel.GetModelInfo().GetVertexNum();
 		vari_index_mapping.clear();
 		vari_index_mapping.resize(vert_num, -1);
@@ -590,7 +653,37 @@ namespace PARAM
 			}
 
 			m_face_chart_array[i] = std_chart_id;
-		}		
+		}
+
+        		int colors[48][3] = 
+		{
+			{255, 128, 128}, {0, 64, 128},  {255, 128, 192}, {128, 255, 128}, 
+			{0, 255, 128}, {128, 255, 255}, {0, 128, 255}, {255, 128, 255}, 
+
+			{255, 0, 0}, {255, 255, 0}, {128, 255, 0}, {0, 255, 64}, 
+			{0, 255, 255}, {0, 128, 192}, {128, 128, 192}, {255, 0, 255}, 
+
+			{128, 64, 64}, {255, 128, 64}, {0, 255, 0}, {0, 128, 128}, 
+			{0, 64, 128}, {128, 128, 255}, {128, 0, 64}, {255, 0, 128}, 
+
+			{128, 0, 0}, {0, 128, 0}, {0, 128, 64}, {255, 255, 128},
+			{0, 0, 255}, {0, 0, 160}, {128, 0, 128}, {128, 0, 255}, 
+
+			{64, 0, 0}, {128, 64, 0}, {0, 64, 0}, {0, 64, 64}, 
+			{0, 0, 128}, {0, 0, 64}, {64, 0, 64}, {64, 0, 128}, 
+		};
+
+		
+		ColorArray& colorArray = p_mesh->m_Kernel.GetFaceInfo().GetColor();
+		colorArray.clear();
+		colorArray.resize(face_num);
+
+		for(size_t i = 0; i < m_face_chart_array.size(); ++ i)
+		{
+			int index = m_face_chart_array[i] % 48;
+			colorArray[i] = Color(colors[index][0], colors[index][1], colors[index][2]);
+		}
+
 	}
 
 	void Parameter::SetMeshFaceTextureCoord()
@@ -608,7 +701,7 @@ namespace PARAM
 
 			const IndexArray& faces = face_list_array[fid];			
 			int face_chart_id = m_face_chart_array[fid];
-			face_chart_id = FindBestChartIDForTriShape(fid);
+            //		face_chart_id = FindBestChartIDForTriShape(fid);
 
 			for(int k=0; k<3; ++k)
 			{

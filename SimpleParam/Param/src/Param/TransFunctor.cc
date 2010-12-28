@@ -11,7 +11,7 @@
 
 namespace PARAM
 {
-	TransFunctor::TransFunctor(boost::shared_ptr<ChartCreator> _p_chart_creator) 
+	TransFunctor::TransFunctor(boost::shared_ptr<ChartCreator> _p_chart_creator)
 		: p_chart_creator(_p_chart_creator) {}
 	TransFunctor::~TransFunctor(){}
 
@@ -26,6 +26,13 @@ namespace PARAM
 			return trans_mat;
 		}
 		assert(trans_list.size() >=2);
+
+        // std::cout << "Trans list : " << from_chart_id <<" " << to_chart_id << " : " << std::endl;
+        // for(size_t k=0; k<trans_list.size(); ++k){
+        //     std::cout << trans_list[k] <<" ";
+        // }
+        // std::cout << std::endl;           
+        
 
 		for(size_t k=1; k<trans_list.size(); ++k)
 		{	
@@ -89,8 +96,14 @@ namespace PARAM
 	{
 		const std::vector<ParamChart>& chart_array = p_chart_creator->GetChartArray();
 		const ParamChart& param_chart = chart_array[chart_id];
-		const std::vector<ParamCoord> conner_param_coord_vec = param_chart.m_conner_param_coord_array;
+		const std::vector<ParamCoord>& conner_param_coord_vec = param_chart.m_conner_param_coord_array;
 
+        // std::cout << "Chart ID : " << chart_id << std::endl;
+        // for(size_t k=0; k<conner_param_coord_vec.size(); ++k){
+        //     std::cout << "( " << conner_param_coord_vec[k].s_coord <<" " << conner_param_coord_vec[k].t_coord << ")" << " ";
+        // }
+        // std::cout << std::endl;
+        
 		zjucad::matrix::matrix<double> t_mat(zjucad::matrix::eye<double>(3));
 		zjucad::matrix::matrix<double> r_mat(zjucad::matrix::eye<double>(3));
 
@@ -113,6 +126,13 @@ namespace PARAM
 			double cross_v = x1*y2 - y1*x2;
 			double dot_v = x1*x2 + y1*y2;
 
+            // std::cout << x1 << " " << y1 <<" " << x2 <<" " << y2 << std::endl;
+            // std::cout << cross_v << " " << dot_v << std::endl;
+
+            double asin_angle = asin(cross_v);
+			double acos_angle = acos(dot_v);
+
+            
 			double r_angle;
 			if(fabs(dot_v) < LARGE_ZERO_EPSILON) 
 			{
@@ -122,7 +142,15 @@ namespace PARAM
 			{
 				if(dot_v < 0) r_angle = PI;
 				else r_angle = 0;
-			}
+			}else {             
+   				if(cross_v < 0 && dot_v > 0) r_angle = asin_angle + 2*PI; /// 4 
+				else if( cross_v < 0 && dot_v < 0) r_angle = PI - asin_angle; /// 3
+				else if( cross_v > 0 && dot_v < 0) r_angle = acos_angle; /// 2
+				else if( cross_v > 0 && dot_v > 0) r_angle = asin_angle; /// 1
+
+				if(r_angle < 0) r_angle += 2*PI;
+            }
+            //std::cout << "Rotate angle : " << r_angle << std::endl;
 			double cos_v = cos(r_angle), sin_v = sin(r_angle);
 			r_mat(0, 0) = cos_v; r_mat(0, 1) = sin_v;
 			r_mat(1, 0) = -sin_v; r_mat(1, 1) = cos_v;
@@ -164,13 +192,17 @@ namespace PARAM
 
 		std::pair<int, int> old_x_axis_1, new_x_axis_1;
 		/// find the from chart and to chart's origin and x-axis
+        size_t edge_num = from_patch.m_edge_index_array.size();
 		old_x_axis_1 = std::make_pair(0, 1); 
-		new_x_axis_1 = std::make_pair(com_edge_idx_1, (com_edge_idx_1+1)%4);
+		new_x_axis_1 = std::make_pair(com_edge_idx_1, (com_edge_idx_1+1)%edge_num);
 
 		std::pair<int, int> old_x_axis_2, new_x_axis_2;
 		old_x_axis_2 = std::make_pair(0, 1);
-		new_x_axis_2 = std::make_pair( (com_edge_idx_2+1)%4, com_edge_idx_2);
+		new_x_axis_2 = std::make_pair( (com_edge_idx_2+1)%edge_num, com_edge_idx_2);
 
+        // std::cout << "Chart 1 : " << new_x_axis_1.first << " " << new_x_axis_1.second << std::endl;
+        // std::cout << "Chart 2 : " << new_x_axis_2.first << " " << new_x_axis_2.second << std::endl;
+        
 		zjucad::matrix::matrix<double> trans_mat_1 = GetTransMatrixInOneChart(from_chart_id,
 			old_x_axis_1, new_x_axis_1);
 		zjucad::matrix::matrix<double> trans_mat_2 = GetTransMatrixInOneChart(to_chart_id,

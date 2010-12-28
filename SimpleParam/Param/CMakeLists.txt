@@ -14,7 +14,15 @@ find_package( OpenGL REQUIRED)
 
 find_package(Qt4 COMPONENTS QtCore QtGui QtOpenGL REQUIRED 4.5)
 
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_COMPILER /usr/bin/g++)
+
+
 project(Parameter)
+
+
+message("${CMAKE_BUILD_TYPE}")
+message("${CMAKE_CXX_COMPILER}")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)

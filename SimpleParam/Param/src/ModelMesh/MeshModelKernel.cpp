@@ -163,7 +163,7 @@ void ModelInfo::ClearData()
     util.FreeVector(m_Boundaries);
 }
 
-void ModelInfo::SetFileName(string filename)
+void ModelInfo::SetFileName(std::string filename)
 {
     m_FileName = filename;
 }

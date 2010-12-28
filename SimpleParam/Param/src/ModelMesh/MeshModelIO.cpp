@@ -60,10 +60,10 @@ void MeshModelIO::AttachKernel(MeshModelKernel* pKernel /* = NULL */)
 
 
 // General I/O functions, platform-dependent functions 
-bool MeshModelIO::LoadModel(const string& filename)
+bool MeshModelIO::LoadModel(const std::string& filename)
 {
     // Resolve file name
-    string file_path, file_title, file_ext;
+    std::string file_path, file_title, file_ext;
     util.ResolveFileName(filename, file_path, file_title, file_ext);
 
     printf("Load Model %s... ", (file_title+file_ext).c_str());
@@ -108,10 +108,10 @@ bool MeshModelIO::LoadModel(const string& filename)
     return bOpenFlag;
 }
 
-bool MeshModelIO::StoreModel(const string& filename)
+bool MeshModelIO::StoreModel(const std::string& filename)
 {
     // Resolve file name
-    string file_path, file_title, file_ext;
+    std::string file_path, file_title, file_ext;
     util.ResolveFileName(filename, file_path, file_title, file_ext);
 
     printf("Store Model %s... ", (file_title+file_ext).c_str());
@@ -147,7 +147,7 @@ bool MeshModelIO::StoreModel(const string& filename)
 }
 
 // .tm file I/O functions
-bool MeshModelIO::OpenTmFile(const string& filename)
+bool MeshModelIO::OpenTmFile(const std::string& filename)
 {
     // Read data from file
     FILE* fp = fopen(filename.c_str(), "r");    
@@ -206,10 +206,10 @@ bool MeshModelIO::OpenTmFile(const string& filename)
     return true;
 }
 
-bool MeshModelIO::SaveTmFile(const string& filename)
+bool MeshModelIO::SaveTmFile(const std::string& filename)
 {
     // Read data from file
-    ofstream file(filename.c_str());
+    std::ofstream file(filename.c_str());
     if(!file)
         return false;
 
@@ -246,10 +246,10 @@ bool MeshModelIO::SaveTmFile(const string& filename)
 }
 
 // .ply2 file I/O functions
-bool MeshModelIO::OpenPly2File(const string& filename)
+bool MeshModelIO::OpenPly2File(const std::string& filename)
 {
     // Read data from file
-    ifstream file(filename.c_str());
+    std::ifstream file(filename.c_str());
     if(! file)
         return false;
 
@@ -290,10 +290,10 @@ bool MeshModelIO::OpenPly2File(const string& filename)
     return true;
 }
 
-bool MeshModelIO::SavePly2File(const string& filename)
+bool MeshModelIO::SavePly2File(const std::string& filename)
 {
     // Read data from file
-    ofstream file(filename.c_str());
+    std::ofstream file(filename.c_str());
     if(!file)
         return false;
 
@@ -332,7 +332,7 @@ bool MeshModelIO::SavePly2File(const string& filename)
 }
 
 // .off file I/O functions
-bool MeshModelIO::OpenOffFile(const string& filename)
+bool MeshModelIO::OpenOffFile(const std::string& filename)
 {
     // Read data from file
     FILE* fp = fopen(filename.c_str(), "r");
@@ -391,14 +391,14 @@ bool MeshModelIO::OpenOffFile(const string& filename)
 }
 
 // .off file I/O functions
-bool MeshModelIO::SaveOffFile(const string& filename)
+bool MeshModelIO::SaveOffFile(const std::string& filename)
 {
     // Read data from file
-    ofstream file(filename.c_str());
+    std::ofstream file(filename.c_str());
     if(!file)
         return false;
 
-	file << "OFF" << endl;
+	file << "OFF" << std::endl;
 	
     size_t nVertex, nFace;
     VertexInfo& vInfo = kernel->GetVertexInfo();
@@ -432,7 +432,7 @@ bool MeshModelIO::SaveOffFile(const string& filename)
 	
     return true;
 }
-bool MeshModelIO::OpenObjFile(const string& filename)
+bool MeshModelIO::OpenObjFile(const std::string& filename)
 {
 	int nVertex = 0, nFace = 0;
 	float coordPos0;
@@ -444,8 +444,8 @@ bool MeshModelIO::OpenObjFile(const string& filename)
 	char format[10];
 
 
-	string str;
-	ifstream ifs(filename.c_str());
+    std::string str;
+    std::ifstream ifs(filename.c_str());
 
 	if(ifs.fail()) return false;
 
@@ -471,7 +471,7 @@ bool MeshModelIO::OpenObjFile(const string& filename)
 	}
 
 	ifs.clear();
-	ifs.seekg(0, ifstream::beg);
+	ifs.seekg(0, std::ifstream::beg);
 
 	// Prepare for a new mesh model
     kernel->ClearData();
@@ -535,16 +535,16 @@ bool MeshModelIO::OpenObjFile(const string& filename)
 		// read the face information here.
 		if(str[0] == 'f' && str[1] == ' ') 
 		{
-			vector<int> word_pos(1, 0);
-			string delimit = " \t";
+            std::vector<int> word_pos(1, 0);
+            std::string delimit = " \t";
 			for(size_t i = 0; i < str.length(); ++i) {
-				if(delimit.find(str[i]) == string::npos)
+				if(delimit.find(str[i]) == std::string::npos)
 					continue;
-				if(i+1 < str.length() && delimit.find(str[i+1]) == string::npos)
+				if(i+1 < str.length() && delimit.find(str[i+1]) == std::string::npos)
 					word_pos.push_back((int) i+1);
 			}
 			if(word_pos.size() < 4) {
-				cout << "bad polygon";
+                std::cout << "bad polygon";
 				return false;
 			}
 			sscanf(str.c_str()+word_pos[1], "%d", &fv0);
@@ -569,15 +569,15 @@ bool MeshModelIO::OpenObjFile(const string& filename)
 
 	return true;
 }
-bool MeshModelIO::SaveObjFile(const string& filename)
+bool MeshModelIO::SaveObjFile(const std::string& filename)
 {
-	ofstream file(filename.c_str());
+    std::ofstream file(filename.c_str());
     if(!file)
         return false;
 
-	file << "# " << endl;
-	file << "# Wavefront OBJ file" << endl;
-	file << "# object ..." + filename << endl;
+	file << "# " << std::endl;
+	file << "# Wavefront OBJ file" << std::endl;
+	file << "# object ..." + filename << std::endl;
 	
     size_t nVertex, nFace;
     VertexInfo& vInfo = kernel->GetVertexInfo();

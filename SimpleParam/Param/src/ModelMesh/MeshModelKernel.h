@@ -40,9 +40,6 @@
 
 #pragma once
 
-using namespace std;
-
-
 
 /* ================== Kernel Element Flags ================== */
 // General Flags
@@ -239,8 +236,8 @@ public:
     // Queries
     Flag& GetFlag() { return m_Flag; }
 
-    string GetFileName() { return m_FileName; } 
-    void SetFileName(string filename);
+    std::string GetFileName() { return m_FileName; } 
+    void SetFileName(std::string filename);
     
     int GetType() { return m_Type; }
     void SetType(int type) { m_Type = type; }

@@ -32,6 +32,7 @@
 #ifndef MESHMODELIO_H_
 #define MESHMODELIO_H_
 
+#include <string>
 #include "MeshModelKernel.h"
 #include "../Common/Utility.h"
 #include "../Common/TriangularMesh.h"

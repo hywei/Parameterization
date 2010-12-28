@@ -29,13 +29,17 @@ namespace PARAM
 		if(m_draw_mode & DRAWSELECTION) DrawSelectedVert();
 
 		DrawPatchConner();
-		DrawSelectedVert();
+        //		DrawSelectedVert();
         // std::cout << "Select Vertex : " << m_selected_vert_id << " : "<<
         //     m_selected_vert_coord[0] << " " << m_selected_vert_coord[1] << ' '
         //           << m_selected_vert_coord[2] << std::endl;
 		
-		//DrawUnCorrespondingVertex();	   
+		DrawUnCorrespondingVertex();	   
 
+
+        //
+        //        DrawPatchFace();
+        
 		glDisable(GL_COLOR_MATERIAL);
 		glDisable(GL_POLYGON_SMOOTH);
 
@@ -150,6 +154,61 @@ namespace PARAM
 			glEnd();
 		}
 	}
+
+    void ParamDrawer::DrawPatchFace() const
+    {
+        boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();
+        boost::shared_ptr<ChartCreator> p_chart_creator = m_parameter.GetChartCreator();
+        
+        if(p_mesh == NULL) return;
+        if(p_chart_creator == NULL) return;
+
+        int colors[56][3] = 
+		{			  
+			{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, 
+			{ 255, 0 , 255}, {0, 255, 255}, {255, 255, 255}, {0, 0, 0},
+
+			{255, 128, 128}, {0, 64, 128},  {255, 128, 192}, {128, 255, 128}, 
+			{0, 255, 128}, {128, 255, 255}, {0, 128, 255}, {255, 128, 255}, 
+
+			{255, 0, 0}, {255, 255, 0}, {128, 255, 0}, {0, 255, 64}, 
+			{0, 255, 255}, {0, 128, 192}, {128, 128, 192}, {255, 0, 255}, 
+
+			{128, 64, 64}, {255, 128, 64}, {0, 255, 0}, {0, 128, 128}, 
+			{0, 64, 128}, {128, 128, 255}, {128, 0, 64}, {255, 0, 128}, 
+
+			{128, 0, 0}, {0, 128, 0}, {0, 128, 64}, {255, 255, 128},
+			{0, 0, 255}, {0, 0, 160}, {128, 0, 128}, {128, 0, 255}, 
+
+			{64, 0, 0}, {128, 64, 0}, {0, 64, 0}, {0, 64, 64}, 
+			{0, 0, 128}, {0, 0, 64}, {64, 0, 64}, {64, 0, 128}, 
+		};
+
+        
+        const std::vector<ParamPatch>& patch_array = p_chart_creator->GetPatchArray();
+        const PolyIndexArray& face_list_array = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+        const NormalArray& vert_norm_array = p_mesh->m_Kernel.GetVertexInfo().GetNormal();
+        const CoordArray& vert_coord_array = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+
+        glBegin(GL_TRIANGLES);
+        for(size_t k=0; k<patch_array.size(); ++k){           
+            const ParamPatch& patch = patch_array[k];
+            const std::vector<int>& faces = patch.m_face_index_array;
+            glColor3ub(colors[k%56][0], colors[k%56][1], colors[k%56][2]);
+            for(size_t i=0; i<faces.size(); ++i){
+                int fid = faces[i];
+                const IndexArray& vertices = face_list_array[fid];
+                for(int j=0; j<3; ++j){
+                    const Coord& v = vert_coord_array[vertices[j]];
+                    const Normal& n = vert_norm_array[vertices[j]];
+                    glNormal3d(n[0], n[1], n[2]);
+                    glVertex3d(v[0], v[1], v[2]);
+                }
+            }
+        }
+        glEnd();
+                    
+    }
 
 	void ParamDrawer::DrawOutRangeVertex() const
 	{

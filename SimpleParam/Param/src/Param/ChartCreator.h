@@ -9,6 +9,8 @@
 #include <string>
 #include <boost/shared_ptr.hpp>
 
+#include <map>
+
 class MeshModel;
 
 namespace PARAM
@@ -41,7 +43,12 @@ namespace PARAM
         //! set each patch's neighbor info
         void SetPatchNeighbors();
         
-        
+
+        void SetMeshEdgePatchEdgeMapping(std::map< std::pair<int, int>, std::vector<int> >& me_pe_mapping) const;
+        bool FloodFillFaceForAllPatchs();
+        bool FloodFillFaceAPatch(int init_fid, std::vector<bool>& face_visited_flag, const std::map< std::pair<int, int>, std::vector<int> >& me_pe_mapping);
+
+        std::vector<int> GetMeshEdgeAdjFaces(int, int) const;
     private:
         boost::shared_ptr<MeshModel> p_mesh;
         
