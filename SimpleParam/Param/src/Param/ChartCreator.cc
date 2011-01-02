@@ -123,7 +123,19 @@ namespace PARAM
         // return true;
 
         
-        // FloodFillFaceForAllPatchs();
+        //FloodFillFaceForAllPatchs();
+
+		ofstream face_out("faces.txt");
+		for(size_t k=0; k<m_patch_array.size(); ++k){
+			const ParamPatch& param_patch = m_patch_array[k];
+			const std::vector<int>& face_vec = param_patch.m_face_index_array;
+			face_out << "Patch " << k <<" : " << face_vec.size() << std::endl;
+			for(size_t i=0; i<face_vec.size(); ++i){
+				face_out << face_vec[i] <<" ";
+			}
+			face_out << std::endl;
+		}
+
 
 
         ofstream fout("temp_file.txt");
@@ -213,6 +225,8 @@ namespace PARAM
             if(un_decide_conner.size() == patch.m_conner_index_array.size()){
                 std::cerr << "Error: can't set conner for this patch " << k << std::endl;
             }else{
+				if(un_decide_conner.size() !=0 )
+					std::cout << "Warning: there are undecide conner for patch " << k << std::endl;
                 //! TODO:
                 for(size_t k=0; k<un_decide_conner.size(); ++k){
                     

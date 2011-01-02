@@ -1,7 +1,13 @@
 #include "linear_solver.h"
 #include "../Common/stopwatch.h"
 #include "../Numerical/MatrixConverter.h"
-//#include <hj_3rd/hjlib/sparse/sparse_multi_cl.h>
+
+#ifdef WIN32
+#include <hj_3rd/hjlib/sparse_old/sparse_multi_cl.h>
+#else
+#include <hj_3rd/hjlib/sparse/sparse_multi_cl.h>
+#endif
+
 #include <assert.h>
 #include <float.h>
 #include <set>

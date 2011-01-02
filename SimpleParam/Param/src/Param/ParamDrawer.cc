@@ -6,13 +6,19 @@
 #include <vector>
 #include <limits>
 
+#ifdef WIN32
+#include <GL/GLAux.h>
+#else
 #include <GL/gl.h>
 #include <GL/glu.h>
-
+#endif
 namespace PARAM
 {
 	ParamDrawer::ParamDrawer(const Parameter& _param) 
-		: m_parameter(_param) { m_selected_vert_coord = -1; }
+		: m_parameter(_param) {
+			m_selected_vert_coord = -1; 
+			m_draw_patch_conner = m_draw_patch_edge = m_draw_patch_face = false;
+	}
 	ParamDrawer::~ParamDrawer(){}
 
 	void ParamDrawer::Draw() const
@@ -20,25 +26,24 @@ namespace PARAM
 		glEnable(GL_LIGHTING);
 		glEnable(GL_POLYGON_SMOOTH);
 		glPolygonMode(GL_FRONT, GL_FILL);
-		glEnable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(2.0, 2.0);
 		glEnable(GL_COLOR_MATERIAL);
 		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 
-		if(m_draw_mode & DRAWPATCHCONNER) DrawPatchConner();
-		if(m_draw_mode & DRAWSELECTION) DrawSelectedVert();
-
-		DrawPatchConner();
+		//if(m_draw_mode & DRAWPATCHCONNER) DrawPatchConner();
+		if(m_draw_patch_conner) DrawPatchConner();
+		if(m_draw_patch_face) DrawPatchFace();
         //		DrawSelectedVert();
         // std::cout << "Select Vertex : " << m_selected_vert_id << " : "<<
         //     m_selected_vert_coord[0] << " " << m_selected_vert_coord[1] << ' '
         //           << m_selected_vert_coord[2] << std::endl;
 		
-		DrawUnCorrespondingVertex();	   
+		// DrawUnCorrespondingVertex();	   
 
+		// DrawUnSetFace();
 
-        //
-        //        DrawPatchFace();
+		// DrawFlipedFace();
+
+		//if(m_draw_mode & DRAWPATCHFACE) DrawPatchFace();
         
 		glDisable(GL_COLOR_MATERIAL);
 		glDisable(GL_POLYGON_SMOOTH);
@@ -52,9 +57,14 @@ namespace PARAM
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 		glLineWidth(3.0f);
+	
+		glPolygonOffset(1.0, 1.0);
+		glEnable(GL_POLYGON_OFFSET_FILL);
 
-		if(m_draw_mode & DRAWPATCHEDGE) DrawPatchEdge();
-		DrawPatchEdge();
+		//if(m_draw_mode & DRAWPATCHEDGE) DrawPatchEdge();
+		if(m_draw_patch_edge) DrawPatchEdge();
+
+		glDisable(GL_POLYGON_OFFSET_FILL);
 
 		glHint(GL_LINE_SMOOTH_HINT, GL_DONT_CARE);
 		glDisable(GL_BLEND);
@@ -189,6 +199,25 @@ namespace PARAM
         const PolyIndexArray& face_list_array = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
         const NormalArray& vert_norm_array = p_mesh->m_Kernel.GetVertexInfo().GetNormal();
         const CoordArray& vert_coord_array = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+		const NormalArray& face_norm_array = p_mesh->m_Kernel.GetFaceInfo().GetNormal();
+
+// 		for(size_t k=0; k<face_list_array.size(); ++k)
+// 		{
+// 			const IndexArray& vertices = face_list_array[k];
+// 			Coord center(0, 0, 0);
+// 			for(size_t i=0; i<3; ++i)
+// 			{
+// 				int vid = vertices[i];
+// 				center += vert_coord_array[vid];
+// 			}
+// 			center /=3;
+// 			const Coord& f_norm = face_norm_array[k];
+// 			Coord endp = center + f_norm;
+// 			glBegin(GL_LINES);
+// 			glVertex3d(center[0], center[1], center[2]);
+// 			glVertex3d(endp[0], endp[1], endp[2]);
+// 			glEnd();
+// 		}
 
         glBegin(GL_TRIANGLES);
         for(size_t k=0; k<patch_array.size(); ++k){           
@@ -267,6 +296,33 @@ namespace PARAM
 			glEnd();
 		}
 
+	}
+
+	void ParamDrawer::DrawFlipedFace() const
+	{
+		boost::shared_ptr<MeshModel> p_mesh = m_parameter.GetMeshModel();		
+		if(p_mesh == NULL) return ;
+		const std::vector<int>& fliped_face_array = m_parameter.GetFlipedFaceArray();
+		const PolyIndexArray& face_list_array = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+
+		glColor3ub(0, 0, 255);
+		for(size_t k=0; k<fliped_face_array.size(); ++k)
+		{
+			int fid = fliped_face_array[k];
+
+			const IndexArray& fIndex = face_list_array[fid];
+			glBegin(GL_TRIANGLES);
+
+			for(int j = 0; j < 3; ++ j)
+			{
+				int vID = fIndex[j];
+				const Coord& v = vCoord[vID];
+				glVertex3d(v[0], v[1], v[2]);
+			}
+
+			glEnd();
+		}
 	}
 
 	void ParamDrawer::DrawSelectedVert() const

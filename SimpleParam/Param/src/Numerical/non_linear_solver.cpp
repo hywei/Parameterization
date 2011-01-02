@@ -1,7 +1,13 @@
 #include "non_linear_solver.h"
 #include "../Common/stopwatch.h"
 #include "../Numerical/MatrixConverter.h"
+
+#ifdef WIN32
+#include <hj_3rd/hjlib/sparse_old/sparse_multi_cl.h>
+#else
 #include <hj_3rd/hjlib/sparse/sparse_multi_cl.h>
+#endif
+
 #include <math.h>
 #include <float.h>
 #include <memory>

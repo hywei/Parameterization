@@ -1,5 +1,6 @@
-include_directories( ${PROJECT_SOURCE_DIR}/include )
-include_directories( ${PROJECT_SOURCE_DIR}/include/hj_3rd)
+include_directories( ${Boost_INCLUDE_DIR}
+                     ${PROJECT_SOURCE_DIR}/include
+                     ${PROJECT_SOURCE_DIR}/include/hj_3rd)
 
 set ( HEADERS Parameterization.h
               Barycentric.h
@@ -8,6 +9,7 @@ set ( HEADERS Parameterization.h
               ChartCreator.h
               TransFunctor.h
               ParamDrawer.h
+              TriDistortion.h
               Parameter.h )
 
 set ( SOURCES Parameterization.cc
@@ -15,6 +17,7 @@ set ( SOURCES Parameterization.cc
               TransFunctor.cc
               ChartCreator.cc
               ParamDrawer.cc
+              TriDistortion.cc
               Parameter.cc )
               
 

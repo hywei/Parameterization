@@ -3,11 +3,16 @@
 
 #include "MeshSparseMatrix.h"
 #include "solver.h"
-#include <hj_3rd/hjlib/sparse/sparse.h>
 #include "../Graphite/OGF/math/symbolic/symbolic.h"
 #include "../Graphite/OGF/math/symbolic/stencil.h"
 #include <vector>
 #include <deque>
+
+#ifdef WIN32
+#include <hj_3rd/hjlib/sparse_old/sparse.h>
+#else
+#include <hj_3rd/hjlib/sparse/sparse.h>
+#endif
 
 enum NonLinearSolveMethod {
 	GAUSS_NEWTON, 

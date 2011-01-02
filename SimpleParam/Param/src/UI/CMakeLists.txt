@@ -1,6 +1,7 @@
 
 include_directories( $ENV{QTDIR}/include
                      $ENV{QTDIR}/include/QtOpenGL
+                     ${Boost_INCLUDE_DIR}
                    )
 
 file(GLOB HEADERS *.h)

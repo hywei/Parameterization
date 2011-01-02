@@ -2,6 +2,7 @@
 #include "Parameter.h"
 #include "TransFunctor.h"
 #include "Barycentric.h"
+#include "TriDistortion.h"
 
 #include "../ModelMesh/MeshModel.h"
 #include "../Numerical/linear_solver.h"
@@ -14,6 +15,7 @@
 #include <set>
 #include <limits>
 #include <fstream>
+#include <cmath>
 
 namespace PARAM
 {
@@ -39,43 +41,51 @@ namespace PARAM
 		{
 			std::cout<<"Error : Please load quad file first!\n";
 			return false;
-		}
+		}		
         
 		SetInitFaceChartLayout();
 		SetInitVertChartLayout();        
 
-        // TransFunctor tran_functor(p_chart_creator);
-        // zjucad::matrix::matrix<double> trans_mat;
-                
-        // trans_mat = tran_functor.GetTransMatrix(0, 0);
-        // std::cout << trans_mat << std::endl;
+// 		TransFunctor tri_functor(p_chart_creator);
+// 		zjucad::matrix::matrix<double> tran_mat = tri_functor.GetTransMatrix(0, 1);
+// 		std::cout<< tran_mat <<std::endl;
+// 
+// 		ParamCoord to_param_coord(0, 0);	
+// 		
+// 		TransParamCoordBetweenCharts(1, 3, ParamCoord(1, 1), to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
+// 
+// 		TransParamCoordBetweenCharts(1, 0, ParamCoord(1, 1), to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
+// 		
+// 		ParamCoord pre_coord = to_param_coord;
+// 		TransParamCoordBetweenCharts(0, 2, pre_coord, to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
+// 
+// 		pre_coord = to_param_coord;
+// 		TransParamCoordBetweenCharts(2, 3, pre_coord, to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
+// 		
+// 
+// 		TransParamCoordBetweenCharts(2, 3, ParamCoord(0, 0), to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
+// 
+// 		TransParamCoordBetweenCharts(2, 3, ParamCoord(1, 1), to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
+// 
+// 		TransParamCoordBetweenCharts(3, 2, ParamCoord(1, 0), to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
+// 
+// 		TransParamCoordBetweenCharts(3, 2, ParamCoord(0.633975, 1.36603), to_param_coord);
+// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
 
-        
-        // trans_mat = tran_functor.GetTransMatrix(0, 1);
-        // std::cout << trans_mat << std::endl;
 
-        // ParamCoord param_coord(0.5, 0.866);
-        // TransParamCoordBetweenCharts(0, 1, ParamCoord(0.5, 0.866), param_coord);
-        // std::cout << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
-        
-        // trans_mat = tran_functor.GetTransMatrix(1, 2);
-        // std::cout << trans_mat << std::endl;
 
-        // TransParamCoordBetweenCharts(0, 7, ParamCoord(0, 0), param_coord);
-        // std::cout << 0 << " " << 7 <<" : " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
-
-        // TransParamCoordBetweenCharts(0, 8, ParamCoord(0.5, 0.866025), param_coord);
-        // std::cout << 0 << " " << 8 <<" : " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl;
-
-        // TransParamCoordBetweenCharts(0, 6, ParamCoord(1, 0), param_coord);
-        // std::cout << 0 << " " << 6 << " : " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl;
-
-        
 		CMeshSparseMatrix lap_mat;
 		SetLapMatrixCoef(p_mesh, lap_mat);
-
+		//SetLapMatrixCoefWithMeanValueCoord(p_mesh, lap_mat);
 		
-		int loop_num = 8;
+		int loop_num = 1;
 		for(int k=0; k<loop_num; ++k)
 		{
 			SolveParameter(lap_mat);
@@ -86,13 +96,18 @@ namespace PARAM
 			}
 		}	   		
 
+		AdjustPatchBoundary();
         GetOutRangeVertices(m_out_range_vert_array);
         
 		ResetFaceChartLayout();
 		SetMeshFaceTextureCoord();
 
-		GetOutRangeVertices(m_out_range_vert_array);
+		//GetOutRangeVertices(m_out_range_vert_array);
 		SetChartVerticesArray();
+
+		ComputeDistortion();
+
+		CheckFlipedTriangle();
 
 		return true;
 	}
@@ -115,7 +130,7 @@ namespace PARAM
 		}
 
         ofstream fout("temp.txt");
-        for(size_t k=0; k<face_num; ++k){
+        for(size_t k=0; k<(size_t)face_num; ++k){
             fout << m_face_chart_array[k] <<" ";
         }
         fout << std::endl;
@@ -155,7 +170,7 @@ namespace PARAM
         fout.close();
 	}
    
-	void Parameter::SetBoundaryVertexParamValue()
+	void Parameter::SetBoundaryVertexParamValue(LinearSolver* p_linear_solver /* = NULL */)
 	{
 		const std::vector<ParamPatch>& patch_array = p_chart_creator->GetPatchArray();
 		const std::vector<ParamChart>& chart_array = p_chart_creator->GetChartArray();
@@ -182,7 +197,15 @@ namespace PARAM
 					m_vert_param_coord_array[conner_vid].s_coord =
 						param_chart.m_conner_param_coord_array[i].s_coord;
 					m_vert_param_coord_array[conner_vid].t_coord =
-						param_chart.m_conner_param_coord_array[i].t_coord;				
+						param_chart.m_conner_param_coord_array[i].t_coord;	
+
+					if(p_linear_solver){
+						int var_index = conner_vid*2;
+						p_linear_solver->variable(var_index).lock();
+						p_linear_solver->variable(var_index).set_value(param_chart.m_conner_param_coord_array[i].s_coord);
+						p_linear_solver->variable(var_index + 1).lock();
+						p_linear_solver->variable(var_index + 1).set_value(param_chart.m_conner_param_coord_array[i].t_coord);
+					}
 				}
 			}
 
@@ -195,9 +218,11 @@ namespace PARAM
 				if(patch_edge.m_nb_patch_index_array.size() == 1) /// this is a boundary patch edge
 				{
 					std::pair<int, int> conner_pair = patch_edge.m_conner_pair_index;
+					int conner_vid1 = patch_conner_array[conner_pair.first].m_mesh_index;
+					int conner_vid2 = patch_conner_array[conner_pair.second].m_mesh_index;
 
-					int conner_idx_1 = GetConnerIndexInPatch(conner_pair.first, k);
-					int conner_idx_2 = GetConnerIndexInPatch(conner_pair.second, k);
+					int conner_idx_1 = GetConnerIndexInPatch(conner_vid1, k);
+					int conner_idx_2 = GetConnerIndexInPatch(conner_vid2, k);
                     
 					double start_s_coord = param_chart.m_conner_param_coord_array[conner_idx_1].s_coord;
 					double start_t_coord = param_chart.m_conner_param_coord_array[conner_idx_1].t_coord;
@@ -225,6 +250,14 @@ namespace PARAM
 
 						m_vert_param_coord_array[mesh_vert].s_coord = s_coord;						
 						m_vert_param_coord_array[mesh_vert].t_coord = t_coord;
+
+						if(p_linear_solver){
+							int var_index = mesh_vert*2;
+							p_linear_solver->variable(var_index).lock();
+							p_linear_solver->variable(var_index).set_value(s_coord);
+							p_linear_solver->variable(var_index + 1).lock();
+							p_linear_solver->variable(var_index + 1).set_value(t_coord);
+						}
 					}
 				}
 			}
@@ -241,23 +274,24 @@ namespace PARAM
         
 		vector<int> vari_index_mapping;
 		SetVariIndexMapping(vari_index_mapping);
-		SetBoundaryVertexParamValue();
-        
+
         // for(size_t k=0; k<m_vert_param_coord_array.size(); ++k){
         //     if(vari_index_mapping[k] == -1)
         //         std::cout << m_vert_chart_array[k] <<" " <<  m_vert_param_coord_array[k].s_coord << ' ' <<
         //             m_vert_param_coord_array[k].t_coord << std::endl;
         // }
-		
+
 		int vari_num = (int)vari_index_mapping.size()*2;
+				
+		std::cout << "Begin solve parameterization: variable num "<< vari_num << std::endl;
 
 		LinearSolver linear_solver(vari_num);
-		
-		TransFunctor trans_functor(p_chart_creator);
 
+		SetBoundaryVertexParamValue(&linear_solver);        
+		
 		linear_solver.begin_equation();
 		for(int vid = 0; vid < vert_num; ++vid)
-		{
+		{		
 			/// there are no laplance equation on boundary vertex						
 			if(vari_index_mapping[vid] == -1) continue;
 
@@ -270,6 +304,18 @@ namespace PARAM
 			{
 				linear_solver.begin_row();
 
+				bool have_boundary_vert(false);
+				for(size_t k=0; k<row_index.size(); ++k)
+				{
+					int col_vert = row_index[k];
+					int val_index = vari_index_mapping[col_vert];
+					if(val_index == -1) 
+					{
+						have_boundary_vert = true;
+						break;
+					}
+				}
+
 				double right_b = 0;
 				for(size_t k=0; k<row_index.size(); ++k)
 				{
@@ -277,50 +323,47 @@ namespace PARAM
 					int from_chart_id = m_vert_chart_array[col_vert];
 					int var_index = vari_index_mapping[col_vert];
                     
+					double lap_weight = row_data[k];
+									   
 					if(from_chart_id == to_chart_id)
 					{
 						if( var_index == -1)
 						{
 							double st_value = (st==0) ? m_vert_param_coord_array[col_vert].s_coord : 
 								m_vert_param_coord_array[col_vert].t_coord;
-							right_b -= row_data[k]*st_value;
+							
+							right_b -= lap_weight*st_value;
 						}else
 						{
-							linear_solver.add_coefficient(var_index*2 + st, row_data[k]);
+							linear_solver.add_coefficient(var_index*2 + st, lap_weight);
 						}
 					}else
 					{
-						if(var_index == -1)
+						if(var_index == -1) 
 						{
 							ParamCoord param_coord;
-							TransParamCoordBetweenCharts(from_chart_id, to_chart_id, 
+							TransParamCoordBetweenCharts(from_chart_id, to_chart_id, col_vert, 
 								m_vert_param_coord_array[col_vert], param_coord);
 							double st_value = (st==0) ? param_coord.s_coord : param_coord.t_coord;
-							right_b -= row_data[k]*st_value;
+							right_b -= lap_weight*st_value;
 						}else
 						{
                             
-                            zjucad::matrix::matrix<double> trans_mat = trans_functor.GetTransMatrix(from_chart_id, to_chart_id);
+                            zjucad::matrix::matrix<double> trans_mat = GetTransMatrix(col_vert, vid, from_chart_id, to_chart_id);
 							double a = (st == 0) ? trans_mat(0, 0) : trans_mat(1, 0);
 							double b = (st == 0) ? trans_mat(0, 1) : trans_mat(1, 1);
 							double c = (st == 0) ? trans_mat(0, 2) : trans_mat(1, 2);
                             
-                            
-                            // if(!(fabs(a) < LARGE_ZERO_EPSILON || fabs(b) < LARGE_ZERO_EPSILON) ){
-                            //     std::cout << from_chart_id <<" " << to_chart_id << std::endl;
-                            //     std::cout << a << " " << b <<" " << c << std::endl;
-                            // }
-                            
 							///! a*u + b*v + c
 							if(!(fabs(a) < LARGE_ZERO_EPSILON))
 							{
-								linear_solver.add_coefficient(var_index*2, row_data[k]*a);
+								linear_solver.add_coefficient(var_index*2, lap_weight*a);
 							}
 							if(!(fabs(b) < LARGE_ZERO_EPSILON))
 							{
-								linear_solver.add_coefficient(var_index*2+1, row_data[k]*b);
+								linear_solver.add_coefficient(var_index*2+1, lap_weight*b);
 							}
-							right_b -= c*row_data[k];
+							right_b -= c*lap_weight;
 						}
 					}					
 				}
@@ -369,8 +412,8 @@ namespace PARAM
         
 		int vari_num = 0;
 		for(int vid=0; vid < vert_num; ++vid){
-			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid) ||
-               find(conner_vertices.begin(), conner_vertices.end(), vid) != conner_vertices.end()){
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid) ){
+//				|| find(conner_vertices.begin(), conner_vertices.end(), vid) != conner_vertices.end()){
 				continue;
 			}
 			vari_index_mapping[vid] = vari_num++;
@@ -382,66 +425,74 @@ namespace PARAM
 		const std::vector<ParamChart>& param_chart_array = p_chart_creator->GetChartArray();
 		const PolyIndexArray& vert_adjvertices_array =p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
 
-		int adjust_num(0);
-		for(int vid = 0; vid < (int)vert_adjvertices_array.size(); ++vid)
-		{
-			int chart_id = m_vert_chart_array[vid];
-			ParamCoord param_coord = m_vert_param_coord_array[vid];
-			const ParamChart& param_chart = param_chart_array[chart_id];
-			if(param_chart.InValidRangle(param_coord)) continue;
-
-			bool flag = false;
-			double out_range_error = ComputeOutRangeError(param_coord);
-			double min_out_range_error = out_range_error;
-			int min_error_chart_id = chart_id;
-			ParamCoord min_error_param_coord;
-
-			const IndexArray& adj_vertices = vert_adjvertices_array[vid];
-			for(size_t k=0; k<adj_vertices.size(); ++k)
+		bool swap_able = false;
+		do{
+			swap_able = false;
+			int adjust_num(0);
+			for(int vid = 0; vid < (int)vert_adjvertices_array.size(); ++vid)
 			{
-				int adj_chart_id = m_vert_chart_array[adj_vertices[k]];
-				if(chart_id == adj_chart_id) continue;
+				int chart_id = m_vert_chart_array[vid];
+				ParamCoord param_coord = m_vert_param_coord_array[vid];
+				const ParamChart& param_chart = param_chart_array[chart_id];
+				if(param_chart.InValidRangle(param_coord)) continue;
 
-				ParamCoord adj_param_coord = m_vert_param_coord_array[adj_vertices[k]];
-				const ParamChart& adj_chart = param_chart_array[adj_chart_id];
-				if(!adj_chart.InValidRangle(adj_param_coord)) continue;
+				bool flag = false;
+				double out_range_error = ComputeOutRangeError4EqualTriangle(param_coord);
+				double min_out_range_error = out_range_error;
+				int min_error_chart_id = chart_id;
+				ParamCoord min_error_param_coord;
 
-				if(chart_id != adj_chart_id)
+				const IndexArray& adj_vertices = vert_adjvertices_array[vid];
+				for(size_t k=0; k<adj_vertices.size(); ++k)
 				{
-					TransParamCoordBetweenCharts(chart_id, adj_chart_id, 
-						m_vert_param_coord_array[vid], param_coord);
+					int adj_chart_id = m_vert_chart_array[adj_vertices[k]];
+					if(chart_id == adj_chart_id) continue;
+
+					ParamCoord adj_param_coord = m_vert_param_coord_array[adj_vertices[k]];
+					const ParamChart& adj_chart = param_chart_array[adj_chart_id];
+					if(!adj_chart.InValidRangle(adj_param_coord)) continue;
+
+					if(chart_id != adj_chart_id)
+					{
+// 						TransParamCoordBetweenCharts(chart_id, adj_chart_id, 
+// 							m_vert_param_coord_array[vid], param_coord);
+						TransParamCoordBetweenCharts(chart_id, adj_chart_id, vid, 
+							m_vert_param_coord_array[vid], param_coord);
+					}
+
+					if(adj_chart.InValidRangle(param_coord))
+					{
+						m_vert_chart_array[vid] = adj_chart_id;
+						m_vert_param_coord_array[vid] = param_coord;
+						flag = true; 
+						swap_able = true;
+						break;
+					}else
+					{
+						double cur_out_range_error = ComputeOutRangeError4EqualTriangle(param_coord);
+						if(cur_out_range_error < min_out_range_error)
+						{
+							min_out_range_error = cur_out_range_error;
+							min_error_chart_id = adj_chart_id;
+							min_error_param_coord = param_coord;
+						}
+					}
+
 				}
-
-				if(adj_chart.InValidRangle(param_coord))
+				if(flag == false)
 				{
-					m_vert_chart_array[vid] = adj_chart_id;
-					m_vert_param_coord_array[vid] = param_coord;
-					flag = true; 
-					break;
+					// 	if(chart_id == min_error_chart_id) 
+					// 	 std::cout<<"Can't adjust this vertex " << vid << std::endl;
+					// 				m_vert_chart_array[vid] = min_error_chart_id;
+					// 				m_vert_param_coord_array[vid] = min_error_param_coord;
 				}else
 				{
-					double cur_out_range_error = ComputeOutRangeError(param_coord);
-					if(cur_out_range_error < min_out_range_error)
-					{
-						min_out_range_error = cur_out_range_error;
-						min_error_chart_id = adj_chart_id;
-						min_error_param_coord = param_coord;
-					}
+					adjust_num ++;
 				}
-
 			}
-			if(flag == false)
-			{
-// 				if(chart_id == min_error_chart_id) 
-// 					std::cout<<"Can't adjust this vertex " << vid << std::endl;
-				m_vert_chart_array[vid] = min_error_chart_id;
-				m_vert_param_coord_array[vid] = min_error_param_coord;
-			}else
-			{
-				adjust_num ++;
-			}
-		}
-		std::cout << "Adjust " << adjust_num << "vertices." << std::endl;
+			std::cout << "Adjust " << adjust_num << "vertices." << std::endl;
+		}while(swap_able);
+		
 	}
 
 	void Parameter::GetOutRangeVertices(std::vector<int>& out_range_vert_array) const
@@ -491,7 +542,8 @@ namespace PARAM
 			steps = q.front(); q.pop();
 
 			ParamCoord cur_param_coord;
-			TransParamCoordBetweenCharts(init_chart_id, cur_chart_id, init_param_coord, cur_param_coord);
+			TransParamCoordBetweenCharts(init_chart_id, cur_chart_id, 
+				out_range_vert,init_param_coord, cur_param_coord);
 			const ParamChart& cur_param_chart = param_chart_array[cur_chart_id];
 			if(cur_param_chart.InValidRangle(cur_param_coord))
 			{
@@ -500,7 +552,7 @@ namespace PARAM
 				break;
 			}else
 			{
-				double cur_out_range_error = ComputeOutRangeError(cur_param_coord);
+				double cur_out_range_error = ComputeOutRangeError4EqualTriangle(cur_param_coord);
 				if(cur_out_range_error < min_out_range_error)
 				{
 					min_out_range_error = cur_out_range_error;
@@ -544,10 +596,10 @@ namespace PARAM
 
 	void Parameter::TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, 
 		const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const
-	{
+	{	
 		TransFunctor tran_functor(p_chart_creator);
-		
-		zjucad::matrix::matrix<double> tran_mat = tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
+		zjucad::matrix::matrix<double> tran_mat = 
+			tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
 
 		to_param_coord.s_coord = tran_mat(0, 0)*from_param_coord.s_coord + 
 			tran_mat(0, 1)*from_param_coord.t_coord + tran_mat(0, 2);
@@ -555,6 +607,37 @@ namespace PARAM
 			tran_mat(1, 1)*from_param_coord.t_coord + tran_mat(1, 2);
 	}
 
+	void Parameter::TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, int vid, 
+		const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const
+	{
+		TransFunctor tran_functor(p_chart_creator);
+		
+		bool is_ambiguity = IsAmbiguityChartPair(from_chart_id, to_chart_id);
+		
+		if(is_ambiguity) {
+			tran_functor.TransParamCoordBetweenAmbiguityCharts(
+			vid, from_chart_id, to_chart_id, from_param_coord, to_param_coord);
+		}else{
+			zjucad::matrix::matrix<double> tran_mat = 
+				tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
+
+			to_param_coord.s_coord = tran_mat(0, 0)*from_param_coord.s_coord + 
+				tran_mat(0, 1)*from_param_coord.t_coord + tran_mat(0, 2);
+			to_param_coord.t_coord = tran_mat(1, 0)*from_param_coord.s_coord +
+				tran_mat(1, 1)*from_param_coord.t_coord + tran_mat(1, 2);
+		}
+	}
+
+	zjucad::matrix::matrix<double> Parameter::GetTransMatrix(int from_vid, int to_vid, int from_chart_id, int to_chart_id) const
+	{
+		TransFunctor tran_functor(p_chart_creator);
+		bool is_ambiguity = IsAmbiguityChartPair(from_chart_id, to_chart_id);
+		if(is_ambiguity){
+			return tran_functor.GetTransMatrixBetweenAmbiguityCharts(from_vid, from_chart_id, to_vid, to_chart_id);
+		}else{
+			return tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
+		}
+	}
 
 
 	double Parameter::ComputeMeshPathLength(const std::vector<int>& mesh_path, int start_idx, int end_idx) const
@@ -609,45 +692,56 @@ namespace PARAM
 			}
 
 			int std_chart_id(-1);
+			int min_error_chart_id(-1);
+			double min_out_range_error = numeric_limits<double>::infinity();
 			for(size_t j=0; j<3; ++j)
 			{
 				int chart_id = m_vert_chart_array[faces[j]];
 				bool flag = true;
+				double out_range_error = 0;
 				for(size_t k=0; k<3; ++k)
 				{
 					int cur_chart_id = m_vert_chart_array[faces[k]];
 					ParamCoord cur_param_coord = m_vert_param_coord_array[faces[k]];
 					if(cur_chart_id != chart_id)
 					{
-						TransParamCoordBetweenCharts(cur_chart_id,chart_id, 
+						TransParamCoordBetweenCharts(cur_chart_id,chart_id, faces[k],
 							m_vert_param_coord_array[faces[k]], cur_param_coord);
 					}
 					const ParamChart& param_chart = param_chart_array[cur_chart_id];
 					if(!param_chart.InValidRangle(cur_param_coord))
 					{
-						flag = false;
-						break;
+						flag = false;		
+						out_range_error += ComputeOutRangeError4EqualTriangle(cur_param_coord);
 					}
 				}
 				if(flag == true)
 				{
 					std_chart_id = chart_id;
 					break;
+				}else{
+					if(min_out_range_error > out_range_error) 
+					{
+						min_out_range_error = out_range_error;
+						min_error_chart_id = chart_id;
+					}
 				}
 			}
 			if(std_chart_id == -1)
 			{
 				m_unset_layout_face_array.push_back(i);
+				if(min_error_chart_id != -1) std_chart_id = min_error_chart_id;
+				else{
 				//std::cout<<"Can't find valid chart for this face's three vertices!\n";
-				int max_times(-1);
-				for(size_t k=0; k<chart_id_vec.size(); ++k)
-				{
-					int c = chart_id_vec[k];
-					int cur_times = count(chart_id_vec.begin(), chart_id_vec.end(), c);
-					if(cur_times > max_times)
-					{
-						max_times = cur_times;
-						std_chart_id = c;
+					int max_times(-1);
+					for(size_t k=0; k<chart_id_vec.size(); ++k){
+						int c = chart_id_vec[k];
+						int cur_times = count(chart_id_vec.begin(), chart_id_vec.end(), c);
+						if(cur_times > max_times)
+						{
+							max_times = cur_times;
+							std_chart_id = c;
+						}
 					}
 				}
 			}
@@ -655,7 +749,14 @@ namespace PARAM
 			m_face_chart_array[i] = std_chart_id;
 		}
 
-        		int colors[48][3] = 
+		ofstream fout("unset_face.txt");
+		for(size_t k=0; k<m_unset_layout_face_array.size(); ++k)
+		{
+			fout << m_unset_layout_face_array[k] << " ";
+		}
+		fout << std::endl;
+
+		int colors[48][3] = 
 		{
 			{255, 128, 128}, {0, 64, 128},  {255, 128, 192}, {128, 255, 128}, 
 			{0, 255, 128}, {128, 255, 255}, {0, 128, 255}, {255, 128, 255}, 
@@ -710,7 +811,7 @@ namespace PARAM
 				ParamCoord vert_param_coord = m_vert_param_coord_array[vid];
 				if(vert_chart_id != face_chart_id)
 				{
-					TransParamCoordBetweenCharts(vert_chart_id, face_chart_id, 
+					TransParamCoordBetweenCharts(vert_chart_id, face_chart_id, vid,
 						m_vert_param_coord_array[vid], vert_param_coord);
 				}
 				face_tex[k] = TexCoord(vert_param_coord.s_coord, vert_param_coord.t_coord);
@@ -721,20 +822,35 @@ namespace PARAM
 
 	void Parameter::SetChartVerticesArray()
 	{
+		int colors[16][3] = 
+		{
+			{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, 
+			{ 255, 0 , 255}, {0, 255, 255}, {255, 255, 255}, {0, 0, 0},
+
+			{64, 0, 0}, {128, 64, 0}, {0, 64, 0}, {0, 64, 64}, 
+			{0, 0, 128}, {0, 0, 64}, {64, 0, 64}, {64, 0, 128}, 
+		};
+
 		int chart_num = p_chart_creator->GetChartNumber();
 		m_chart_vertices_array.clear();
 		m_chart_vertices_array.resize(chart_num);
 
 		int vert_num = p_mesh->m_Kernel.GetModelInfo().GetVertexNum();
+
+		ColorArray& vtx_color_array = p_mesh->m_Kernel.GetVertexInfo().GetColor();
+		vtx_color_array.clear(); vtx_color_array.resize(vert_num);
+
 		for(int vid = 0; vid<vert_num; ++vid)
 		{
 			int chart_id = m_vert_chart_array[vid];
 			m_chart_vertices_array[chart_id].push_back(vid);
+
+			vtx_color_array[vid] = Color(colors[chart_id%16][0], colors[chart_id%16][1], colors[chart_id%16][2]);
 		}
 		
 	}
 
-    double Parameter::ComputeOutRangeError(ParamCoord param_coord)
+    double Parameter::ComputeOutRangeError4Square(ParamCoord param_coord) const
     {
         double error=0;
         if(GreaterEqual(param_coord.s_coord, 1) || LessEqual(param_coord.s_coord, 0)){
@@ -746,6 +862,18 @@ namespace PARAM
         }
         return sqrt(error);
     }
+
+	double Parameter::ComputeOutRangeError4EqualTriangle(ParamCoord param_coord) const
+	{
+		/// you must be sure that this parameter coordinate is outrange
+		double sqrt_3 = sqrt(3.0)/2;
+		double dist1 = dis_ptoline(0, 0, 0.5, sqrt_3, param_coord.s_coord, param_coord.t_coord);
+		double dist2 = dis_ptoline(0, 0, 1.0, 0, param_coord.s_coord, param_coord.t_coord);
+		double dist3 = dis_ptoline(1.0, 0, 0.5, sqrt_3, param_coord.s_coord, param_coord.t_coord);
+
+		double min_dist = min(dist1, min(dist2, dist3));
+		return min_dist;
+	}
 
 	int Parameter::FindBestChartIDForTriShape(int fid) const
 	{
@@ -786,7 +914,7 @@ namespace PARAM
 				ParamCoord cur_param_coord = m_vert_param_coord_array[cur_vid];
 				if(cur_chart_id != chart_id)
 				{
-					TransParamCoordBetweenCharts(cur_chart_id, chart_id, 
+					TransParamCoordBetweenCharts(cur_chart_id, chart_id, cur_vid, 
 						m_vert_param_coord_array[cur_vid], cur_param_coord);
 				}
 				vtx_param_coord_array[k] =Coord2D(cur_param_coord.s_coord, cur_param_coord.t_coord);
@@ -890,6 +1018,75 @@ namespace PARAM
 				}
 			}
 		}
+		return false;
+	}
+
+	void Parameter::ComputeDistortion()
+	{
+
+		TriDistortion tri_distortion(*this);
+		tri_distortion.ComputeDistortion();
+
+		const std::vector<double>& face_harmonic_distortion = tri_distortion.GetFaceHarmonicDistortion();
+		const std::vector<double>& face_isometric_distortion = tri_distortion.GetFaceIsometricDistortion();
+
+		FaceValue2VtxColor(p_mesh, face_harmonic_distortion);
+		
+	}
+
+	void Parameter::CheckFlipedTriangle()
+	{
+		int face_num = p_mesh->m_Kernel.GetModelInfo().GetFaceNum();
+
+		const PolyIndexArray& face_list_array = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+
+		m_fliped_face_array.clear();
+
+		for(int fid =0; fid < face_num; ++fid)
+		{
+			const IndexArray& faces = face_list_array[fid];
+			int face_chart_id = m_face_chart_array[fid];
+			std::vector<double> u(3), v(3);
+			for(int i=0; i<3; ++i)
+			{
+				int vid = faces[i];
+				int chart_id = m_vert_chart_array[vid];
+				ParamCoord param_coord = m_vert_param_coord_array[vid];
+				if(chart_id != face_chart_id)
+				{
+					TransParamCoordBetweenCharts(chart_id, face_chart_id, vid,
+						m_vert_param_coord_array[vid], param_coord);
+				}
+				u[i] = param_coord.s_coord;
+				v[i] = param_coord.t_coord;
+			}
+			/// (v2-v0)*(u1-u0) - (u2-u0)*(v1-v0)
+			double area = (u[1] - u[0]) * (v[2] - v[0]) - (u[2] - u[0]) * (v[1]-v[0]);
+			if(fabs(area) < LARGE_ZERO_EPSILON) continue;
+			if(area < 0 ) m_fliped_face_array.push_back(fid);
+		}
+		std::cout << "There are " << m_fliped_face_array.size() <<" fliped faces." << std::endl;
+	}
+
+	bool Parameter::IsAmbiguityChartPair(int chart_id_1, int chart_id_2) const
+	{
+		const std::vector<ParamPatch>& patch_array = p_chart_creator->GetPatchArray();
+		const ParamPatch& patch_1 = patch_array[chart_id_1];
+		const ParamPatch& patch_2 = patch_array[chart_id_2];
+
+		const std::vector<PatchEdge>& patch_edge_array = p_chart_creator->GetPatchEdgeArray();
+
+		/// find the common edge of these two charts
+		const std::vector<int>& patch_edge_array_1 = patch_1.m_edge_index_array;
+		const std::vector<int>& patch_edge_array_2 = patch_2.m_edge_index_array;
+
+		std::vector<int> common_edges;
+		for(size_t k=0; k<patch_edge_array_1.size(); ++k){
+			if(find(patch_edge_array_2.begin(), patch_edge_array_2.end(), patch_edge_array_1[k]) 
+				!= patch_edge_array_2.end()) common_edges.push_back(patch_edge_array_1[k]);
+		}
+
+		if(common_edges.size() >=2 ) return true;
 		return false;
 	}
 }

@@ -5,8 +5,13 @@
 class QGLWidget;
 #include "../Common/BasicDataType.h"
 #include "../Numerical/matrix.h"
+
+#ifdef WIN32
+#include <GL/GLAux.h>
+#else
 #include <GL/gl.h>
 #include <GL/glu.h>
+#endif
 
 /* ================== Macros ================== */
 

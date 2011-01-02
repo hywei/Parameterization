@@ -1103,26 +1103,28 @@ void MeshModelRender::DrawVector(double scale, Coord& start, Coord& vec, Coord& 
 
 int MeshModelRender::CreateTexture(const std::string& texture_file_name)
 {
-	// GLuint texName;
 
-	// AUX_RGBImageRec* texture_image = auxDIBImageLoadA((LPCSTR)texture_file_name.c_str());
+#ifdef WIN32
+	GLuint texName;
 
-	// glGenTextures(1, &texName);					
+	AUX_RGBImageRec* texture_image = auxDIBImageLoadA((LPCSTR)texture_file_name.c_str());
 
-	// glBindTexture(GL_TEXTURE_2D, texName);
-	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	// glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-	// glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-	// glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_image->sizeX, 
-	// 	texture_image->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, 
-	// 	texture_image->data);
+	glGenTextures(1, &texName);					
 
-	// if (texture_image)
-	// {
-	// 	if (texture_image->data)	free(texture_image->data);			
-	// 	free(texture_image);					
-	// }
+	glBindTexture(GL_TEXTURE_2D, texName);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_image->sizeX, 
+	texture_image->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, 
+	texture_image->data);
 
+	if (texture_image)
+	{
+	 	if (texture_image->data)	free(texture_image->data);			
+	 	free(texture_image);					
+	}
+#endif
 	return 0;
 }

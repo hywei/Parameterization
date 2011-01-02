@@ -1,6 +1,10 @@
 #include "Parameterization.h"
 #include "../ModelMesh/MeshModel.h"
 #include "../Numerical/MeshSparseMatrix.h"
+#include "../Common/HSVColor.h"
+#include <limits>
+#include <set>
+#include <queue>
 
 namespace PARAM
 {
@@ -142,5 +146,170 @@ namespace PARAM
 				lap_matrix.SetElement(row, row, d);
 			}
 		}
+	}
+	
+
+	void SetLapMatrixCoefWithMeanValueCoord(const boost::shared_ptr<MeshModel> p_mesh, 
+		CMeshSparseMatrix& lap_matrix)
+	{
+		if(p_mesh == NULL) return;
+		int vert_num = p_mesh->m_Kernel.GetModelInfo().GetVertexNum();
+
+		std::vector< std::vector<double> > vert_tan_coef(vert_num);
+		const PolyIndexArray& vert_adj_vertices = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
+		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+
+		for(int vid=0; vid < vert_num; ++vid){
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid)) continue;
+			const IndexArray& adj_vert_array = vert_adj_vertices[vid];
+			for(size_t i=0; i<adj_vert_array.size(); ++i)
+			{
+				int cur_vtx = adj_vert_array[i];
+				int nxt_vtx = adj_vert_array[(i+1)%adj_vert_array.size()];
+				Coord e1 = vCoord[cur_vtx] - vCoord[vid];
+				Coord e2 = vCoord[nxt_vtx] - vCoord[vid];
+
+				double a = angle(e1, e2)/2;
+				vert_tan_coef[vid].push_back(tan(a));
+			}
+		}	   
+	 
+		//
+		int nb_variables_ = vert_num;
+		lap_matrix.SetRowCol(nb_variables_, nb_variables_);
+
+		for(int i = 0; i < nb_variables_; ++ i)
+		{
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(i)) continue;
+			const IndexArray& adjVertices = vert_adj_vertices[i];
+			int row = i;
+
+			int adj_num = adjVertices.size();
+			for(int j=0; j<adj_num; ++j)
+			{
+				int col = adjVertices[j];
+				double edge_len = (vCoord[row]-vCoord[col]).abs();
+				double coef = (vert_tan_coef[i][j] + vert_tan_coef[i][(j+adj_num-1)%adj_num])/edge_len;
+				double cur_value;
+				lap_matrix.GetElement(row, col, cur_value);
+				cur_value -= coef;
+				lap_matrix.SetElement(row, col, cur_value);
+
+				lap_matrix.GetElement(row, row, cur_value);
+				cur_value += coef;
+				lap_matrix.SetElement(row, row, cur_value);
+
+			}
+		
+		}
+
+	}
+		
+	double xmult(double x1,double y1,double x2,double y2,double x0,double y0){
+			return (x1-x0)*(y2-y0)-(x2-x0)*(y1-y0);
+	}
+	
+	double area_triangle(double x1,double y1,double x2,double y2,double x3,double y3){
+		return fabs(xmult(x1,y1,x2,y2,x3,y3))/2;
+	}
+	double dis_ptoline(double x1,double y1,double x2,double y2,double ex,double ey)
+	{ 
+		double dis,tem1,tem2,t1,t2,yd=sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+		t2=sqrt((x2-ex)*(x2-ex)+(y2-ey)*(y2-ey));
+		t1=sqrt((x1-ex)*(x1-ex)+(y1-ey)*(y1-ey));
+		dis=area_triangle(x1,y1,x2,y2,ex,ey)*2/yd;
+		tem1=sqrt(t1*t1-dis*dis);
+		tem2=sqrt(t2*t2-dis*dis);
+
+		if (tem1>yd||tem2>yd) {
+			if (t1>t2) dis = t2;
+			else dis = t1;
+		}
+		return dis;
+	}
+
+	void FaceValue2VtxColor(boost::shared_ptr<MeshModel> p_mesh, const std::vector<double>& face_value)
+	{
+		ColorArray& face_color_array = p_mesh->m_Kernel.GetFaceInfo().GetColor();
+		face_color_array.clear();
+
+		CHSVColor color;
+		color.RGBtoHSV(1, 0, 0);
+		color.m_S = 0.9f;
+		color.m_V = 0.9f;
+
+		size_t face_num = p_mesh->m_Kernel.GetFaceInfo().GetIndex().size();
+
+		double min = 1e20, max = -1e20;
+		for(size_t i = 0; i < face_num; ++i)
+		{
+			if(face_value[i] < min) min = face_value[i];
+			if(face_value[i] > max) max = face_value[i];
+		}
+
+		double range = (max - min) * 1.1;
+
+		bool eq = ALMOST_EQUAL_LARGE(range, 0.0);
+
+		for(size_t i = 0; i < face_value.size();++i)
+		{
+			float R, G, B;
+			if (eq)
+			{
+				color.m_H = (float) 0.5 * 255;
+			}
+			else
+			{
+				double prop = (face_value[i] - min) / range;
+
+				//color.m_S = prop;
+				color.m_H = (float)(1 - prop) * 255;
+			}
+			color.HSVtoRGB(&R, &G, &B);
+			Color c(R, G, B);
+			face_color_array.push_back(c);
+		}
+	}
+
+	double GetNearestVertexOnPath(boost::shared_ptr<MeshModel> p_mesh, int from_vert, const std::vector<int>& path, int& nearest_vid)
+	{
+		if(p_mesh == NULL) return -1;
+
+// 		const PolyIndexArray& adj_vertices = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
+// 
+// 		std::set<int> path_vert_set(path.begin(), path.end());
+// 		std::set<int> visited_vert_set;
+// 		std::queue<int> q; 
+// 		q.push(from_vert); 
+// 		visited_vert_set.insert(from_vert);
+// 
+// 		while(!q.empty()){
+// 			int cur_vtx = q.front(); 
+// 		}
+
+
+
+
+		double shortest_dist = std::numeric_limits<double>::infinity();
+		nearest_vid = -1;
+		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+
+		for(size_t k=0; k<path.size(); ++k){
+			int vid = path[k];
+			std::vector<int> s_path;
+			p_mesh->m_BasicOp.GetShortestPath(from_vert, vid, s_path);
+			double cur_dist=0;
+			if(s_path.size() > 1){
+				for(size_t i=1; i<s_path.size(); ++i){
+					cur_dist += (vCoord[s_path[i]] - vCoord[s_path[i-1]]).abs();
+				}
+			}
+			if(shortest_dist > cur_dist){
+				shortest_dist = cur_dist;
+				nearest_vid = vid;
+			}
+		}
+		assert(nearest_vid != -1);
+		return shortest_dist;
 	}
 }

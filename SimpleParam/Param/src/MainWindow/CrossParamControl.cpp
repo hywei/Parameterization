@@ -187,9 +187,9 @@ QGroupBox* CrossParamControl::CreateVisualizationGroup(QWidget* parent /* = 0 */
 //	visual_layout->addWidget(united_param_distortion);
 
 	/// connects
-	//connect(patch_conner, SIGNAL(clicked()), this, SLOT(DisplayPatchConner()));
-      //connect(patch_edge, SIGNAL(clicked()), this, SLOT(DisplayPatchEdge()));
-      //connect(patch_face, SIGNAL(clicked()), thsi, SLOT(DisplayPatchFace()));
+	connect(patch_conner, SIGNAL(toggled(bool)), this, SLOT(SetPatchConnerDisplay(bool)));
+    connect(patch_edge, SIGNAL(toggled(bool)), this, SLOT(SetPatchEdgeDisplay(bool)));
+    connect(patch_face, SIGNAL(toggled(bool)), this, SLOT(SetPatchFaceDisplay(bool)));
 
 	return visual_group;
 }
@@ -238,6 +238,42 @@ void CrossParamControl::OptimizeCrossParam()
 // 		PARAM::CrossParamHarmonicOptimizer(*p_cross_param.get()));
 //
 // 	p_cp_optimizer->Optimize();
+}
+
+void CrossParamControl::SetPatchConnerDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer) {
+		m_gl_viewer_1->p_param_drawer->SetDrawPatchConner(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+	if(m_gl_viewer_2 && m_gl_viewer_2->p_param_drawer) {
+		m_gl_viewer_2->p_param_drawer->SetDrawPatchConner(toggled);
+		m_gl_viewer_2->updateGL();
+	}
+}
+
+void CrossParamControl::SetPatchEdgeDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer){
+		m_gl_viewer_1->p_param_drawer->SetDrawPatchEdge(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+	if(m_gl_viewer_2 && m_gl_viewer_2->p_param_drawer){
+		m_gl_viewer_2->p_param_drawer->SetDrawPatchEdge(toggled);
+		m_gl_viewer_2->updateGL();
+	}
+}
+
+void CrossParamControl::SetPatchFaceDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer){
+		m_gl_viewer_1->p_param_drawer->SetDrawPatchFace(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+	if(m_gl_viewer_2 && m_gl_viewer_2->p_param_drawer){
+		m_gl_viewer_2->p_param_drawer->SetDrawPatchFace(toggled);
+		m_gl_viewer_2->updateGL();
+	}
 }
 
 void CrossParamControl::CreateMainLayout()

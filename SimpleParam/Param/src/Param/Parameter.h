@@ -8,6 +8,8 @@
 #include <string>
 #include <boost/shared_ptr.hpp>
 
+#include <hj_3rd/zjucad/matrix/matrix.h>
+
 class MeshModel;
 class LinearSolver;
 class CMeshSparseMatrix;
@@ -39,11 +41,12 @@ namespace PARAM
 
         //! for debug
 		const std::vector<int>& GetOutRangeVertArray() const { return m_out_range_vert_array; }
-		const std::vector<int>& GetUnSetFaceArray() const { return m_unset_layout_face_array; }		
+		const std::vector<int>& GetUnSetFaceArray() const { return m_unset_layout_face_array; }	
+		const std::vector<int>& GetFlipedFaceArray() const { return m_fliped_face_array; }
 
 	private:
 		void SetVariIndexMapping(std::vector<int>& vari_index_mapping);
-		void SetBoundaryVertexParamValue();
+		void SetBoundaryVertexParamValue(LinearSolver* p_linear_solver = NULL);
         
 		void SolveParameter(const CMeshSparseMatrix& lap_mat);
 
@@ -56,7 +59,8 @@ namespace PARAM
 	  
 		void GetOutRangeVertices(std::vector<int>& out_range_vert_array) const;
 		bool FindValidChartForOutRangeVertex(int our_range_vert, int max_ringe_num = 5);
-		double ComputeOutRangeError(ParamCoord param_coord);
+		double ComputeOutRangeError4Square(ParamCoord param_coord) const;
+		double ComputeOutRangeError4EqualTriangle(ParamCoord param_coord) const;
 
 		//! get the length of a mesh path
 		double ComputeMeshPathLength(const std::vector<int>& mesh_path, int start_idx, int end_idx) const;
@@ -77,8 +81,17 @@ namespace PARAM
 		bool FindCorrespondingInChart(const ChartParamCoord& chart_param_coord, 
 			int chart_id, SurfaceCoord& surface_coord) const;
 
+		void CheckFlipedTriangle();
+
+		//! check two charts is ambiguity(have more than one common edges)? 
+		bool IsAmbiguityChartPair(int chart_id_1, int chart_id_2) const;
+
 	public:
+		zjucad::matrix::matrix<double> GetTransMatrix(int from_vid, int to_vid, int from_chart_id, int to_chart_id) const;
+
 		void TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, 
+			const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const;
+		void TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, int vid, 
 			const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const;
 		//! for one face's three vertices, they may be in different chart, and we need transite them to same chart.
 		//! so there are several choose for the common chart, and our standart is the best triangle shape in parameter domain. 
@@ -87,6 +100,7 @@ namespace PARAM
 		//! find the corresponding surface position with the chart paramerter coordinate
 		bool FindCorrespondingOnSurface(const ChartParamCoord& chart_param_coord,SurfaceCoord& surface_coord) const;
 
+		void ComputeDistortion();
 	private:
 		boost::shared_ptr<MeshModel> p_mesh;
 		boost::shared_ptr<ChartCreator> p_chart_creator;
@@ -99,7 +113,8 @@ namespace PARAM
 
 		//! for debug
 		std::vector<int> m_out_range_vert_array;
-		std::vector<int> m_unset_layout_face_array;        
+		std::vector<int> m_unset_layout_face_array;  
+		std::vector<int> m_fliped_face_array;
     };
 } 
 

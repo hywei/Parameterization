@@ -3,6 +3,7 @@
 
 #include "Parameterization.h"
 #include <iostream>
+#include <cmath>
 
 namespace PARAM
 {
@@ -26,8 +27,8 @@ namespace PARAM
                 double x = param_coord.s_coord, y = param_coord.t_coord;
                 //std::cout<< x <<" " << y << std::endl;
                 bool flag1 = (GreaterEqual(x, 0 , LARGE_ZERO_EPSILON) && LessEqual( x, 1, LARGE_ZERO_EPSILON));
-                bool flag2 = LessEqual( y - sqrt(3)*x, 0, LARGE_ZERO_EPSILON);
-                bool flag3 = LessEqual( y + sqrt(3)*(x - 1), 0, LARGE_ZERO_EPSILON);
+                bool flag2 = LessEqual( y - sqrt(3.0)*x, 0, LARGE_ZERO_EPSILON);
+                bool flag3 = LessEqual( y + sqrt(3.0)*(x - 1), 0, LARGE_ZERO_EPSILON);
                 bool flag4 = GreaterEqual(y, 0, LARGE_ZERO_EPSILON);
                 return flag1 && flag2 && flag3 && flag4;
             }

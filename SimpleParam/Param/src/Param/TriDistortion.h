@@ -1,18 +1,18 @@
-#ifndef QUADDISTORTION_H_
-#define QUADDISTORTION_H_
+#ifndef TRIDISTORTION_H_
+#define TRIDISTORTION_H_
 
 #include <hj_3rd/zjucad/matrix/matrix.h>
 #include <vector>
 
 namespace PARAM
 {
-	class QuadParameter;
+	class Parameter;
 
-	class QuadDistortion
+	class TriDistortion
 	{
 	public:
-		QuadDistortion(const QuadParameter& quad_parameter);
-		~QuadDistortion();
+		TriDistortion(const Parameter& parameter);
+		~TriDistortion();
 
 		void ComputeDistortion();
 
@@ -29,11 +29,11 @@ namespace PARAM
 		zjucad::matrix::matrix<double> ComputeParamJacobiMatrix(int fid) const;
 
 	private:
-		const QuadParameter& m_quad_parameter;
+		const Parameter& m_parameter;
 		std::vector<double> m_face_harmonic_distortion; //! each face's harmonic map distortion
 		std::vector<double> m_face_isometric_distortion; //! each face's isometric map distortion
 
 	};
 }
 
-#endif //QUADDISTORTION
+#endif //TRIDISTORTION

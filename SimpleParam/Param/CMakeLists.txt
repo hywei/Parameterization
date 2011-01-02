@@ -1,30 +1,35 @@
 cmake_minimum_required(VERSION 2.8)
 
 if(WIN32)
-        if(MSVC)
-                set(CMAKE_FIND_LIBRARY_PREFIXES "")
-                ses(CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
-        endif()
+        set(CMAKE_FIND_LIBRARY_PREFIXES "")
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
 else()
         set(CMAKE_FIND_LIBRARY_PREFIXES "lib")
         set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
 endif()
 
 find_package( OpenGL REQUIRED)
-
+find_package( Boost REQUIRED)
 find_package(Qt4 COMPONENTS QtCore QtGui QtOpenGL REQUIRED 4.5)
 
-set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_COMPILER /usr/bin/g++)
+
+#set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_CXX_COMPILER /usr/bin/g++)
 
 
 project(Parameter)
 
 
+message("${BOOST_INCLUDE_DIR}")
+
 message("${CMAKE_BUILD_TYPE}")
 message("${CMAKE_CXX_COMPILER}")
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+if(WIN32)
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/win32)
+else()
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin/linux)
+endif()
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 

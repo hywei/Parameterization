@@ -4,6 +4,7 @@ include_directories( $ENV{QTDIR}/include
                      $ENV{QTDIR}/include/QtCore
                      $ENV{QTDIR}/include/QtGui
                      $ENV{QTDIR}/include/QtOpenGl
+                     ${Boost_INCLUDE_DIR}
                      ${PROJECT_SOURCE_DIR}/include
                    )
 
@@ -44,6 +45,7 @@ if(WIN32)
 		set ( OPENGL_LIBRARIES opengl32.lib glu32.lib glaux.lib)
         set ( NUMERIC_LIBRARIES cblas.lib lapack.lib linalg.lib
               sparseRelease.lib sparse.lib)
+        set ( QT_USE_LIBRARIES qtmain QtCore4 QtGui4 QtOpenGL4)
 	endif(MSVC)
 else ()
 	set ( OPENGL_LIBRARIES libGL.so libGLU.so)

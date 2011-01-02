@@ -65,9 +65,7 @@ void QGLViewer::init(void)
 	p_UIHander->Init(this);
 	p_UIHander->GetMouseMode() = MOUSE_MODE_SPIN;
 	p_util = boost::shared_ptr<Utility> (new Utility);
-	p_param = boost::shared_ptr<PARAM::Parameter> (new PARAM::Parameter(p_mesh));
-	p_param_drawer = boost::shared_ptr<PARAM::ParamDrawer> (new
-		PARAM::ParamDrawer(*p_param.get()));
+
 }
 
 
@@ -160,6 +158,10 @@ void QGLViewer::loadMeshModel()
 		p_opengl->OnResize(this->width(), this->height());
 // 		p_param->SetMeshTexCoordForGrid16();
 		p_opengl->Create2DTexture(1);
+
+		p_param.reset();
+		p_param_drawer.reset();
+
 		updateGL();
 	}
 }
@@ -199,11 +201,15 @@ int QGLViewer::loadQuadFile()
 	{
 		if(p_mesh)
 		{
+			p_param = boost::shared_ptr<PARAM::Parameter> (new PARAM::Parameter(p_mesh));
+			p_param_drawer = boost::shared_ptr<PARAM::ParamDrawer> (new
+				PARAM::ParamDrawer(*p_param.get()));
+			
 			p_param->LoadPatchFile(f);
             p_param->ComputeParamCoord();
-
             p_param_drawer->SetUnCorrespondingVertArray(p_param->GetOutRangeVertArray());
-            
+			
+			
 		}else
 			return -1;
 	}else{
@@ -342,10 +348,10 @@ void QGLViewer::getBoundingSphere(Coord& center, double& radius)
 
 void QGLViewer::setDefaultMaterial(void)
 {
-	GLfloat mat_a[] = {0.1, 0.1, 0.1, 1.0};
-	GLfloat mat_d[] = {0.7, 0.7, 0.5, 1.0};
-	GLfloat mat_s[] = {1.0, 1.0, 1.0, 1.0};
-	GLfloat shine[] = {120.0};
+	GLfloat mat_a[] = {0.1f, 0.1f, 0.1f, 1.0f};
+	GLfloat mat_d[] = {0.7f, 0.7f, 0.5f, 1.0f};
+	GLfloat mat_s[] = {1.0f, 1.0f, 1.0f, 1.0f};
+	GLfloat shine[] = {120.0f};
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,   mat_a);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   mat_d);
@@ -358,14 +364,14 @@ void QGLViewer::setDefaultMaterial(void)
 
 void QGLViewer::setDefaultLight(void)
 {
-	GLfloat pos1[] = { 1.0,  1.0, -0.2, 0.0};
-	GLfloat pos2[] = {-1.0,  1.0, -0.2, 0.0};
-	GLfloat pos3[] = { 0.0,  0.0,  1.0,  0.0};
+	GLfloat pos1[] = { 1.0f,  1.0f, -0.2f, 0.0f};
+	GLfloat pos2[] = {-1.0f,  1.0f, -0.2f, 0.0f};
+	GLfloat pos3[] = { 0.0f,  0.0f,  1.0f,  0.0f};
 
 
-	GLfloat col1[] = { 0.7,  0.7,  0.8,  1.0};
-	GLfloat col2[] = { 0.8,  0.7,  0.7,  1.0};
-	GLfloat col3[] = { 1.0,  1.0,  1.0,  1.0};
+	GLfloat col1[] = { 0.7f,  0.7f,  0.8f,  1.0f};
+	GLfloat col2[] = { 0.8f,  0.7f,  0.7f,  1.0f};
+	GLfloat col3[] = { 1.0f,  1.0f,  1.0f,  1.0f};
 
 	glEnable(GL_LIGHT0);    
 	glLightfv(GL_LIGHT0,GL_POSITION, pos1);
@@ -412,7 +418,7 @@ void QGLViewer::initializeGL()
 	GLfloat fogColor[4] = { 0.0, 0.0, 0.25, 1.0};
 	glFogi(GL_FOG_MODE,    GL_LINEAR);
 	glFogfv(GL_FOG_COLOR,  fogColor);
-	glFogf(GL_FOG_DENSITY, 0.35);
+	glFogf(GL_FOG_DENSITY, 0.35f);
 	glHint(GL_FOG_HINT,    GL_DONT_CARE);
 	glFogf(GL_FOG_START,    5.0f);
 	glFogf(GL_FOG_END,     25.0f);

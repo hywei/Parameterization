@@ -43,14 +43,14 @@ namespace PARAM
 		void SetSelectedVertCoord(const SurfaceCoord& select_coord);
 			
 
-		int FindSelectedVertId(const Coord& select_coord);
-
-		void SetDrawMode(DrawMode mode)
-		{
-			m_draw_mode = mode;
-		}
-
+		int FindSelectedVertId(const Coord& select_coord);	
 		int GetSelectedVertID() const { return m_selected_vert_id; }
+
+	public:
+		void SetDrawMode(DrawMode mode){ m_draw_mode = mode;}
+		void SetDrawPatchConner(bool is_draw) { m_draw_patch_conner = is_draw; }
+		void SetDrawPatchEdge(bool is_draw) { m_draw_patch_edge = is_draw; }
+		void SetDrawPatchFace(bool is_draw) { m_draw_patch_face = is_draw; }
 
 	public:
 		ParamDrawer(const Parameter& quad_param);
@@ -65,6 +65,7 @@ namespace PARAM
 
 		void DrawOutRangeVertex() const;
 		void DrawUnSetFace() const;
+		void DrawFlipedFace() const;
 
 		void DrawFaceDistortion() const;
 		void DrawFaceTexture() const;
@@ -85,6 +86,10 @@ namespace PARAM
 		Coord m_selected_vert_coord;
 
 		DrawMode m_draw_mode;
+
+		bool m_draw_patch_conner;
+		bool m_draw_patch_edge;
+		bool m_draw_patch_face;
 	};
 }
 

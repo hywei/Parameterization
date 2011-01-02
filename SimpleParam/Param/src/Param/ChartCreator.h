@@ -27,8 +27,8 @@ namespace PARAM
 
     public:
         //! Get Methods
-        
-        const std::vector<ParamPatch>& GetPatchArray() const { return m_patch_array; }
+		boost::shared_ptr<MeshModel> GetMeshModel() const { return p_mesh; }
+		const std::vector<ParamPatch>& GetPatchArray() const { return m_patch_array; }
         const std::vector<ParamChart>& GetChartArray() const { return m_chart_array; }
         const std::vector<PatchConner>& GetPatchConnerArray() const { return m_patch_conner_array; }
         const std::vector<PatchEdge>& GetPatchEdgeArray() const { return m_patch_edge_array; }

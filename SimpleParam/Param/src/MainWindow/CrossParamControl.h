@@ -30,6 +30,10 @@ private slots:
 	void ComputeCrossParam();
 	void OptimizeCrossParam();
 
+	void SetPatchConnerDisplay(bool );
+	void SetPatchEdgeDisplay(bool );
+	void SetPatchFaceDisplay(bool );
+
 private:
 	QGLViewer* m_gl_viewer_1;
 	QGLViewer* m_gl_viewer_2;

@@ -9,7 +9,11 @@
 
 #include "MeshSparseMatrix.h"
 #include "solver.h"
+#ifdef WIN32
+#include <hj_3rd/hjlib/sparse_old/sparse.h>
+#else
 #include <hj_3rd/hjlib/sparse/sparse.h>
+#endif
 
 class LinearSolver: public Solver
 {

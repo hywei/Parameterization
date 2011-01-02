@@ -7,6 +7,7 @@
 #include <set>
 #include <queue>
 #include <iostream>
+#include <limits>
 
 
 namespace PARAM
@@ -168,27 +169,28 @@ namespace PARAM
 		const std::vector<PatchEdge>& patch_edge_array = p_chart_creator->GetPatchEdgeArray();
 
 		/// find the common edge of these two charts
-		int com_edge_idx_1(-1), com_edge_idx_2(-1);
-		for(size_t k=0; k<from_patch.m_edge_index_array.size(); ++k)
-		{
-			int edge_idx_1 = from_patch.m_edge_index_array[k];
-			const PatchEdge& patch_edge = patch_edge_array[edge_idx_1];
-			const std::vector<int>& pe_neighbors = patch_edge.m_nb_patch_index_array;
-			if(find(pe_neighbors.begin(), pe_neighbors.end(), to_chart_id) != pe_neighbors.end())
-			{
-				for(size_t i=0; i<to_patch.m_edge_index_array.size(); ++i)
-				{
-					int edge_idx_2 = to_patch.m_edge_index_array[i];
-					if(edge_idx_1 == edge_idx_2)
-					{
-						com_edge_idx_1 = k;
-						com_edge_idx_2 = i;
-						break;
-					}
-				}
-			}
-			if(com_edge_idx_1 != -1 && com_edge_idx_2 != -1) break;
+		const std::vector<int>& from_patch_edge_array = from_patch.m_edge_index_array;
+		const std::vector<int>& to_patch_edge_array = to_patch.m_edge_index_array;
+
+		std::vector<int> common_edges;
+		for(size_t k=0; k<from_patch_edge_array.size(); ++k){
+			if(find(to_patch_edge_array.begin(), to_patch_edge_array.end(), from_patch_edge_array[k]) 
+				!= to_patch_edge_array.end()) common_edges.push_back(from_patch_edge_array[k]);
 		}
+		/// the common edges may be not only one, we choose the minimum index edge
+		int com_edge = *(min_element(common_edges.begin(), common_edges.end()));
+
+		int com_edge_idx_1(-1), com_edge_idx_2(-1);
+		for(size_t k=0; k<from_patch_edge_array.size(); ++k){
+			if(from_patch_edge_array[k] == com_edge) { com_edge_idx_1 = (int)k; break; }
+		}
+		for(size_t k=0; k<to_patch_edge_array.size(); ++k){
+			if(to_patch_edge_array[k] == com_edge) { com_edge_idx_2 = (int) k; break; }
+		}
+
+		assert(com_edge_idx_1 != -1 && com_edge_idx_2 != -1);
+			
+
 
 		std::pair<int, int> old_x_axis_1, new_x_axis_1;
 		/// find the from chart and to chart's origin and x-axis
@@ -211,5 +213,153 @@ namespace PARAM
 
 		return trans_mat_2 * trans_mat_1;
 	}
+
+	zjucad::matrix::matrix<double> TransFunctor::GetTransMatrixBetweenAmbiguityCharts(int from_vert, 
+		int from_chart_id, int to_vert, int to_chart_id) const
+	{
+		///TODO: check these two charts is ambiguity charts or not
+		const std::vector<ParamPatch>& patch_array = p_chart_creator->GetPatchArray();
+		const ParamPatch& from_patch = patch_array[from_chart_id];
+		const ParamPatch& to_patch = patch_array[to_chart_id];
+
+		const std::vector<PatchEdge>& patch_edge_array = p_chart_creator->GetPatchEdgeArray();
+
+		/// find the common edge of these two charts
+		const std::vector<int>& from_patch_edge_array = from_patch.m_edge_index_array;
+		const std::vector<int>& to_patch_edge_array = to_patch.m_edge_index_array;
+
+		std::vector<int> common_edges;
+		for(size_t k=0; k<from_patch_edge_array.size(); ++k){
+			if(find(to_patch_edge_array.begin(), to_patch_edge_array.end(), from_patch_edge_array[k]) 
+				!= to_patch_edge_array.end()) common_edges.push_back(from_patch_edge_array[k]);
+		}
+
+		if(common_edges.size() == 0 ) {
+			std::cerr << "Error: These two charts don't have common edges, so they are not ambiguity chart pair!" << std::endl;
+			return zjucad::matrix::eye<double>(3);
+		}else if(common_edges.size() == 1) {
+			std::cerr << "Error: These two charts only have one common edge, so they are not ambiguity chart pair!" << std::endl;
+			return GetTransMatrixOfAdjCharts(from_chart_id, to_chart_id);
+		}
+
+		int com_edge = ChooseEdgeForAmbiguityChart(common_edges, from_vert, to_vert);
+		
+		int com_edge_idx_1(-1), com_edge_idx_2(-1);
+		for(size_t k=0; k<from_patch_edge_array.size(); ++k){
+			if(from_patch_edge_array[k] == com_edge) { com_edge_idx_1 = (int)k; break; }
+		}
+		for(size_t k=0; k<to_patch_edge_array.size(); ++k){
+			if(to_patch_edge_array[k] == com_edge) { com_edge_idx_2 = (int) k; break; }
+		}
+
+		assert(com_edge_idx_1 != -1 && com_edge_idx_2 != -1);
+
+		std::pair<int, int> old_x_axis_1, new_x_axis_1;
+		/// find the from chart and to chart's origin and x-axis
+		size_t edge_num = from_patch.m_edge_index_array.size();
+		old_x_axis_1 = std::make_pair(0, 1); 
+		new_x_axis_1 = std::make_pair(com_edge_idx_1, (com_edge_idx_1+1)%edge_num);
+
+		std::pair<int, int> old_x_axis_2, new_x_axis_2;
+		old_x_axis_2 = std::make_pair(0, 1);
+		new_x_axis_2 = std::make_pair( (com_edge_idx_2+1)%edge_num, com_edge_idx_2);	
+
+		zjucad::matrix::matrix<double> trans_mat_1 = GetTransMatrixInOneChart(from_chart_id,
+			old_x_axis_1, new_x_axis_1);
+		zjucad::matrix::matrix<double> trans_mat_2 = GetTransMatrixInOneChart(to_chart_id,
+			old_x_axis_2, new_x_axis_2);
+		inv(trans_mat_2);
+
+		return trans_mat_2 * trans_mat_1;
+	}
+
+
+	void TransFunctor::TransParamCoordBetweenAmbiguityCharts(int from_vert, int from_chart_id, int to_chart_id, 
+		const ParamCoord& from_coord, ParamCoord& to_coord) const
+	{
+		const std::vector<ParamPatch>& patch_array = p_chart_creator->GetPatchArray();
+		const ParamPatch& from_patch = patch_array[from_chart_id];
+		const ParamPatch& to_patch = patch_array[to_chart_id];
+
+		const std::vector<PatchEdge>& patch_edge_array = p_chart_creator->GetPatchEdgeArray();
+
+		/// find the common edge of these two charts
+		const std::vector<int>& from_patch_edge_array = from_patch.m_edge_index_array;
+		const std::vector<int>& to_patch_edge_array = to_patch.m_edge_index_array;
+
+		std::vector<int> common_edges;
+		for(size_t k=0; k<from_patch_edge_array.size(); ++k){
+			if(find(to_patch_edge_array.begin(), to_patch_edge_array.end(), from_patch_edge_array[k]) 
+				!= to_patch_edge_array.end()) common_edges.push_back(from_patch_edge_array[k]);
+		}
+
+		if(common_edges.size() == 0 ) {
+			std::cerr << "Error: These two charts don't have common edges, so they are not ambiguity chart pair!" << std::endl;
+			return ;
+		}else if(common_edges.size() == 1) {
+			std::cerr << "Error: These two charts only have one common edge, so they are not ambiguity chart pair!" << std::endl;
+			return ;
+		}
+
+        int com_edge = ChooseEdgeForAmbiguityChart(common_edges, from_vert);
+
+		int com_edge_idx_1(-1), com_edge_idx_2(-1);
+		for(size_t k=0; k<from_patch_edge_array.size(); ++k){
+			if(from_patch_edge_array[k] == com_edge) { com_edge_idx_1 = (int)k; break; }
+		}
+		for(size_t k=0; k<to_patch_edge_array.size(); ++k){
+			if(to_patch_edge_array[k] == com_edge) { com_edge_idx_2 = (int) k; break; }
+		}
+
+		assert(com_edge_idx_1 != -1 && com_edge_idx_2 != -1);
+
+		std::pair<int, int> old_x_axis_1, new_x_axis_1;
+			/// find the from chart and to chart's origin and x-axis
+			size_t edge_num = from_patch.m_edge_index_array.size();
+		old_x_axis_1 = std::make_pair(0, 1); 
+		new_x_axis_1 = std::make_pair(com_edge_idx_1, (com_edge_idx_1+1)%edge_num);
+
+		std::pair<int, int> old_x_axis_2, new_x_axis_2;
+		old_x_axis_2 = std::make_pair(0, 1);
+		new_x_axis_2 = std::make_pair( (com_edge_idx_2+1)%edge_num, com_edge_idx_2);	
+
+		zjucad::matrix::matrix<double> trans_mat_1 = GetTransMatrixInOneChart(from_chart_id,
+			old_x_axis_1, new_x_axis_1);
+		zjucad::matrix::matrix<double> trans_mat_2 = GetTransMatrixInOneChart(to_chart_id,
+			old_x_axis_2, new_x_axis_2);
+		inv(trans_mat_2);
+
+		zjucad::matrix::matrix<double> trans_mat = trans_mat_2*trans_mat_1;
+
+		to_coord.s_coord = trans_mat(0, 0)*from_coord.s_coord + 
+			trans_mat(0, 1)*from_coord.t_coord + trans_mat(0, 2);
+		to_coord.t_coord = trans_mat(1, 0)*from_coord.s_coord +
+			trans_mat(1, 1)*from_coord.t_coord + trans_mat(1, 2);
+	}
+
+	int TransFunctor::ChooseEdgeForAmbiguityChart(const std::vector<int>& common_edges,
+		int from_vert, int to_vert/* =-1 */) const		
+	{
+		const std::vector<PatchEdge>& patch_edge_array = p_chart_creator->GetPatchEdgeArray();
+		boost::shared_ptr<MeshModel> p_mesh = p_chart_creator->GetMeshModel();
+		
+		double min_dist = std::numeric_limits<double>::infinity();
+		int com_edge(-1);
+		for(size_t k=0; k<common_edges.size(); ++k)
+		{
+			const std::vector<int>& mesh_path = patch_edge_array[common_edges[k]].m_mesh_path;
+			double cur_dist = 0.0;
+			int nearest_vert;
+			cur_dist += GetNearestVertexOnPath(p_mesh, from_vert, mesh_path, nearest_vert);		
+			if(!to_vert) to_vert += GetNearestVertexOnPath(p_mesh, to_vert, mesh_path, nearest_vert);
+			if(cur_dist < min_dist) {
+				min_dist = cur_dist;
+				com_edge = common_edges[k];
+			}
+		}
+		return com_edge;
+	}
+
+	
 } 
 
