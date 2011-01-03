@@ -4,6 +4,7 @@
 #include "../Common/HSVColor.h"
 #include <limits>
 #include <set>
+#include <map>
 #include <queue>
 
 namespace PARAM
@@ -275,41 +276,308 @@ namespace PARAM
 	{
 		if(p_mesh == NULL) return -1;
 
-// 		const PolyIndexArray& adj_vertices = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
-// 
-// 		std::set<int> path_vert_set(path.begin(), path.end());
-// 		std::set<int> visited_vert_set;
-// 		std::queue<int> q; 
-// 		q.push(from_vert); 
-// 		visited_vert_set.insert(from_vert);
-// 
-// 		while(!q.empty()){
-// 			int cur_vtx = q.front(); 
-// 		}
+		const PolyIndexArray& adj_vertices = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
 
+		std::set<int> path_vert_set;
+		if(path.size() <= 2){
+			for(size_t k=0; k<path.size(); ++k) path_vert_set.insert(path[k]);
+		}else{
+			for(size_t k=1; k<path.size()-1; ++k) path_vert_set.insert(path[k]);
+		}
+		
+		std::set<int> visited_vert_set;
+		std::queue<int> q; 
+		int cur_step =0;
+		q.push(from_vert); 
+		q.push(cur_step);
+		visited_vert_set.insert(from_vert);
 
+		int cur_vert;
+		while(!q.empty()){
+			cur_vert = q.front(); q.pop();
+			cur_step = q.front(); q.pop();
 
+			if(path_vert_set.find(cur_vert) != path_vert_set.end()) { break; }
 
-		double shortest_dist = std::numeric_limits<double>::infinity();
-		nearest_vid = -1;
-		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+			const IndexArray& adj_vert_array = adj_vertices[cur_vert];
 
-		for(size_t k=0; k<path.size(); ++k){
-			int vid = path[k];
-			std::vector<int> s_path;
-			p_mesh->m_BasicOp.GetShortestPath(from_vert, vid, s_path);
-			double cur_dist=0;
-			if(s_path.size() > 1){
-				for(size_t i=1; i<s_path.size(); ++i){
-					cur_dist += (vCoord[s_path[i]] - vCoord[s_path[i-1]]).abs();
+			for(size_t i=0; i<adj_vert_array.size(); ++i){
+				int adj_vert = adj_vert_array[i];
+				if(visited_vert_set.find(adj_vert) == visited_vert_set.end()){
+					q.push(adj_vert);
+					q.push(cur_step+1);
+					visited_vert_set.insert(adj_vert);
 				}
 			}
-			if(shortest_dist > cur_dist){
-				shortest_dist = cur_dist;
-				nearest_vid = vid;
+
+		}
+
+		nearest_vid = cur_vert;
+		return cur_step*1.0;
+	}
+
+	/************************************************************************/
+	/* \fn int FindShortestPathInRegion(int start_vid, int end_vid, 
+	const std::set<size_t>& regoin_face_set, PATH& path)
+	*  \brief FindShortestPathInRegion
+	*  Find the shortest mesh surface path between two vertexes and this path's
+	*  edges should be in one fixed region
+	*  @param start_vid The start vertex id
+	*  @param end_vid The end vertex id
+	*  @param regoin_edge_set The edge set  make up this region
+	*  @param path The path we find
+	*  @return return 0 if success else return Error_Code
+	/************************************************************************/
+	int FindShortestPathInRegion(boost::shared_ptr<MeshModel> p_mesh, int start_vid, int end_vid, 
+		const std::set< std::pair<int, int> >& region_edge_set, std::vector<int>& path)
+	{
+		assert(p_mesh);
+		path.clear();
+		if(start_vid==end_vid) {
+			path.push_back(start_vid); return 0;
+		}
+
+		PolyIndexArray& adjVtxArray = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
+		CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+
+		const std::set<std::pair<int, int> >& edge_set = region_edge_set;
+
+		std::map<int,int> preVtx; //
+		preVtx[end_vid] = -1;
+		std::map<int,double> dist; //
+		dist[end_vid] = 0.0;
+		std::set<int> vtxInQueue; // vertexes in queue
+		queue<int> q;
+		q.push(end_vid);
+		vtxInQueue.insert(end_vid);
+
+		double curLen;
+		map<int,double>::iterator im;
+		while(!q.empty())
+		{
+			int u = q.front(); q.pop();
+			vtxInQueue.erase( vtxInQueue.find(u));
+			if(u==(int)start_vid) break;
+
+			double len = dist[u];
+			IndexArray& adjVtxes = adjVtxArray[u];
+			int nv = (int)adjVtxes.size();
+			for(int k=0; k<nv; ++k)
+			{
+				int vid = adjVtxes[k];
+				std::pair<int, int> e = MakeEdge(u, vid);
+				if(edge_set.find(e) == edge_set.end()) continue;
+
+				im = dist.find(vid);
+				if(im == dist.end()) curLen=INFINITE_DISTANCE;
+				else curLen = im->second;
+				double d = (vCoord[vid] -vCoord[u]).abs();
+				if( len + d < curLen){
+					dist[vid] = len+d;
+					preVtx[vid] = u;
+					if(vtxInQueue.find(vid) == vtxInQueue.end()){
+						vtxInQueue.insert(vid);
+						q.push(vid);
+					}
+				}
 			}
 		}
-		assert(nearest_vid != -1);
-		return shortest_dist;
+
+		int curVID = start_vid, preVID = preVtx[curVID];
+		while(preVID!= -1){
+			path.push_back(curVID);
+			curVID = preVID;
+			preVID = preVtx[curVID];
+		}
+		path.push_back(end_vid);
+
+		return 0;
+	}
+
+	HalfEdge::HalfEdge(){}
+
+	HalfEdge::~HalfEdge()
+	{
+		for(std::vector<_HE_edge*>::iterator it = hf_edge.begin(); it != hf_edge.end(); ++it)
+		{
+			if( (*it) != NULL) delete (*it);
+		}
+	}
+
+	int HalfEdge::CreateHalfEdge(boost::shared_ptr<MeshModel> mesh)
+	{
+		assert(mesh);
+		if(mesh == NULL) return -1;
+
+		PolyIndexArray& fIndex = mesh->m_Kernel.GetFaceInfo().GetIndex();
+
+		size_t faceNum = fIndex.size();
+		for(size_t k=0; k<faceNum; ++k)
+		{
+			IndexArray& f = fIndex[k];
+			size_t vtxNum = f.size();
+
+			size_t vid1 , vid2;
+
+			_HE_edge* prev_hf = NULL;
+			_HE_edge* first_hf = NULL;
+
+			for(size_t i=0; i<vtxNum; ++i)
+			{
+				vid1 = f[i];
+				vid2 = f[(i+1)%vtxNum];
+
+				_HE_edge* edge = new _HE_edge(k, vid1);
+				if(i==0) first_hf = edge;
+
+				hf_edge.push_back(edge);
+				size_t edgeID = hf_edge.size() - 1;
+
+				std::pair<size_t, size_t> e = make_pair(vid2, vid1);
+				std::map< std::pair<size_t, size_t>, size_t>::iterator im = edge_map.find(e); 	
+
+				if(im != edge_map.end())
+				{
+					// the pair half edge exsits
+					edge->pair = hf_edge[im->second];
+					hf_edge[im->second]->pair = edge;
+				}
+				edge_map[std::make_pair(vid1, vid2)] = edgeID;
+				if(prev_hf != NULL) prev_hf->next = edge;
+				if(i==vtxNum-1) edge->next = first_hf;
+
+				prev_hf = edge;
+			}
+
+		}
+
+		return 0;
+	}
+
+	_HE_edge* HalfEdge::GetHalfEdge(std::pair<size_t, size_t> e)
+	{
+		std::map<std::pair<size_t, size_t>, size_t>::iterator im = edge_map.find(e);
+		if(im == edge_map.end()) return NULL;
+		size_t edgeId = im->second;
+		assert(hf_edge[edgeId] != NULL);
+		return hf_edge[edgeId];
+	}
+
+	const _HE_edge* HalfEdge::GetHalfEdge(std::pair<size_t, size_t> e) const
+	{
+		std::map<std::pair<size_t, size_t>, size_t>::const_iterator im = edge_map.find(e);
+		if(im == edge_map.end()) return NULL;
+		size_t edgeId = im->second;
+		assert(hf_edge[edgeId] != NULL);
+		return hf_edge[edgeId];
+	}
+
+	std::vector<int> GetMeshEdgeAdjFaces(boost::shared_ptr<MeshModel> p_mesh, int vtx1, int vtx2)
+	{
+		std::vector<int> adj_faces;
+		if(p_mesh == NULL)
+			return adj_faces;
+
+		const PolyIndexArray& vf_adj_array = p_mesh->m_Kernel.GetVertexInfo().GetAdjFaces();
+		const IndexArray& adj_faces1 = vf_adj_array[vtx1];
+		const IndexArray& adj_faces2 = vf_adj_array[vtx2];
+
+		for(size_t k=0; k<adj_faces1.size(); ++k)
+		{
+			int fid = adj_faces1[k];
+			if(find(adj_faces2.begin(), adj_faces2.end(), fid) != adj_faces2.end())
+			{
+				adj_faces.push_back(fid);
+			}
+		}
+
+		return adj_faces;
+	}
+
+	/************************************************************************/
+	/** \brief FindInnerFace
+	* Find the inner face of one region which is surrounded 
+	* by the boundary paths
+	* @param boundary_path The boundaries that surround this region, the paths
+	* should have been sorted by cw and be a circle
+	* @param face_set The faces that this region includes
+	* @return Return 0 if there is no error happen, else return Error Code
+	/************************************************************************/
+	int FindInnerFace(boost::shared_ptr<MeshModel> p_mesh, const std::vector<int>& boundary_path,  
+		std::vector<int>& face_set, const HalfEdge& half_edge)
+	{
+	    assert(p_mesh);
+		size_t faceNum = p_mesh->m_Kernel.GetFaceInfo().GetIndex().size();
+		face_set.clear();
+		vector<bool> faceVisitFlag(faceNum, false);
+		// find the boundary edges
+		std::set<std::pair<size_t, size_t> > edges;
+		size_t bdVtxNum = boundary_path.size();
+		size_t vid1, vid2;
+		for(size_t k=1; k<bdVtxNum; ++k)
+		{
+			vid1 = boundary_path[k-1];
+			vid2 = boundary_path[k];
+			edges.insert(std::make_pair(vid1, vid2));
+		}
+
+		PolyIndexArray& fIndex = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+		for(size_t k=1; k<bdVtxNum; ++k)
+		{
+			vid1 = boundary_path[k-1];
+			vid2 = boundary_path[k];
+
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid1) || p_mesh->m_BasicOp.IsBoundaryFace(vid2))
+			{
+				continue;
+			}
+
+			std::pair<size_t, size_t> e = std::make_pair(vid1, vid2);
+			std::pair<size_t, size_t> e_ = std::make_pair(vid2, vid1);
+			if(edges.find(e_) == edges.end())
+			{
+				// the msc edge is cw, but the half edge is ccw
+				const HE_edge* hf_e = half_edge.GetHalfEdge(e_);
+				assert(hf_e != NULL);
+				if(hf_e == NULL) {printf("he error!\n"); return -1; }
+
+				size_t fid = hf_e->fid;
+
+				if(faceVisitFlag[fid] == true) continue;
+
+				queue<size_t> q;
+				q.push(fid);
+				faceVisitFlag[fid] = true;
+
+				while(!q.empty())
+				{
+					fid = q.front(); q.pop();
+					face_set.push_back(fid);
+
+					for(size_t k=0; k<3; ++k)
+					{
+						size_t vid1 = fIndex[fid][k];
+						size_t vid2 = fIndex[fid][(k+1)%3];
+
+						if(edges.find(std::make_pair(vid1, vid2)) == edges.end() &&
+							edges.find(std::make_pair(vid2, vid1)) == edges.end())
+						{
+							std::pair<size_t, size_t> e = MakeEdge(vid1, vid2);
+							std::vector<int> adjFaces= GetMeshEdgeAdjFaces(p_mesh, e.first, e.second);
+							if(adjFaces[0] == adjFaces[1]) continue;
+							size_t nxtF = (fid==adjFaces[0] && adjFaces.size() == 2)?adjFaces[1]:adjFaces[0];
+							if(faceVisitFlag[nxtF] == false)
+							{
+								faceVisitFlag[nxtF] = true;
+								q.push(nxtF);
+							}
+						}
+
+					}// end for
+				}// end while
+			}
+		}
+
+		return 0;
 	}
 }

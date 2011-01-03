@@ -25,6 +25,8 @@ namespace PARAM
 
         bool FormParamCharts();
 
+		void OptimizeAmbiguityPatchShape();
+
     public:
         //! Get Methods
 		boost::shared_ptr<MeshModel> GetMeshModel() const { return p_mesh; }
@@ -46,17 +48,25 @@ namespace PARAM
 
         void SetMeshEdgePatchEdgeMapping(std::map< std::pair<int, int>, std::vector<int> >& me_pe_mapping) const;
         bool FloodFillFaceForAllPatchs();
-        bool FloodFillFaceAPatch(int init_fid, std::vector<bool>& face_visited_flag, const std::map< std::pair<int, int>, std::vector<int> >& me_pe_mapping);
+        bool FloodFillFaceAPatch(int init_fid, std::vector<bool>& face_visited_flag, 
+			const std::map< std::pair<int, int>, std::vector<int> >& me_pe_mapping);
 
-        std::vector<int> GetMeshEdgeAdjFaces(int, int) const;
+	private:
+		//! method for optimizing patch shape 		
+		void OptimizeAmbiguityPatchPairShape(int patch_id_1, int patch_id_2);
+
+		void FindPatchInnerFace(int patch_id);
+		void FormPatchBoundary(int patch_id, std::vector<int>& boundary);
+
     private:
         boost::shared_ptr<MeshModel> p_mesh;
         
         std::vector<ParamPatch> m_patch_array;
-
         std::vector<PatchConner> m_patch_conner_array;
         std::vector<PatchEdge> m_patch_edge_array;
         std::vector<ParamChart> m_chart_array;
+
+		HalfEdge m_half_edge;
         
     };
 }

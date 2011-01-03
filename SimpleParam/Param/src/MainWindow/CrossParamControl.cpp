@@ -34,15 +34,23 @@ QGroupBox* CrossParamControl::CreateSurface1Group(QWidget* parent /* = 0 */)
 	load_surface_1_mesh->setText(tr("Load Surface 1 Mesh"));
 	QPushButton* load_surface_1_patch = new QPushButton(surface_1_group);
 	load_surface_1_patch->setText(tr("Load Surface 1 Patch"));
+	QPushButton* optimize_ambiguity_patch = new QPushButton(surface_1_group);
+	optimize_ambiguity_patch->setText(tr("Optimize Ambiguity Patch"));
+	QPushButton* parameter_1 = new QPushButton(surface_1_group);
+	parameter_1->setText(tr("Parameter"));
 
 	/// layout
 	QVBoxLayout* surface_1_layout = new QVBoxLayout(surface_1_group);
 	surface_1_layout->addWidget(load_surface_1_mesh);
 	surface_1_layout->addWidget(load_surface_1_patch);
+	surface_1_layout->addWidget(optimize_ambiguity_patch);
+	surface_1_layout->addWidget(parameter_1);
 
 	/// connections
 	connect(load_surface_1_mesh, SIGNAL(clicked()), m_gl_viewer_1, SLOT(loadMeshModel()));
 	connect(load_surface_1_patch, SIGNAL(clicked()), m_gl_viewer_1, SLOT(loadQuadFile()));
+	connect(optimize_ambiguity_patch, SIGNAL(clicked()), m_gl_viewer_1, SLOT(OptimizeAmbiguityPatch()));
+	connect(parameter_1, SIGNAL(clicked()), m_gl_viewer_1, SLOT(SolveParameter()));
 
 	return surface_1_group;
 }

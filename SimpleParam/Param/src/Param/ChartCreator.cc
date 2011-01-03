@@ -100,29 +100,7 @@ namespace PARAM
         SetPatchConners();
         SetPatchNeighbors();
 
-        // std::vector< std::pair<int, int> > pe_pair;
-        // pe_pair.push_back( std::make_pair(0, 2));
-        // pe_pair.push_back( std::make_pair(1, 6));
-        // pe_pair.push_back( std::make_pair(5, 7));
-        // pe_pair.push_back( std::make_pair(3, 4));
-        // pe_pair.push_back( std::make_pair(2, 7));
-        // pe_pair.push_back( std::make_pair(1, 4));
-
-
-        // ofstream output("add_edge.txt");
-        // for(size_t k=0; k<pe_pair.size(); ++k){
-        //     std::vector<int> new_path;
-        //     p_mesh->m_BasicOp.GetShortestPath(pe_pair[k].first,pe_pair[k].second, new_path);
-        //     output << new_path.size() <<" : " << std::endl;
-        //     for(size_t i=0; i<new_path.size(); ++i){
-        //         output << new_path[i] <<" ";
-        //     }
-        //     output << std::endl;
-        // }
-        // output.close();
-        // return true;
-
-        
+		m_half_edge.CreateHalfEdge(p_mesh);
         //FloodFillFaceForAllPatchs();
 
 		ofstream face_out("faces.txt");
@@ -135,8 +113,6 @@ namespace PARAM
 			}
 			face_out << std::endl;
 		}
-
-
 
         ofstream fout("temp_file.txt");
         for(size_t k=0; k<m_patch_array.size(); ++k){
@@ -162,7 +138,6 @@ namespace PARAM
             fout << std::endl;
         }
         fout.close();
-            
         
         m_chart_array.clear();
         m_chart_array.resize(m_patch_array.size());
@@ -318,7 +293,7 @@ namespace PARAM
 				const std::map< std::pair<int, int>, std::vector<int> >::const_iterator im = me_pe_mapping.find(mesh_edge);
 				if(im == me_pe_mapping.end()) 
 				{
-					const vector<int>& adj_faces = GetMeshEdgeAdjFaces(vid1, vid2);
+					const vector<int>& adj_faces = GetMeshEdgeAdjFaces(p_mesh, vid1, vid2);
 					for(size_t i=0; i<adj_faces.size(); ++i)
 					{
 						int adj_fid = adj_faces[i];
@@ -348,7 +323,7 @@ namespace PARAM
 		{
 			const ParamPatch& param_patch = m_patch_array[pid];
 			bool flag = true;
-			for(int k=0; k<param_patch.m_edge_index_array.size(); ++k)
+			for(int k=0; k<(int)param_patch.m_edge_index_array.size(); ++k)
 			{
 				int pe_idx = param_patch.m_edge_index_array[k];
 				if(patch_edge_set.find(pe_idx) == patch_edge_set.end()) { flag = false; break;}
@@ -383,26 +358,140 @@ namespace PARAM
 		return true;
 	}
 
-    	std::vector<int> ChartCreator::GetMeshEdgeAdjFaces(int vtx1, int vtx2) const
+    	
+	
+
+	void ChartCreator::OptimizeAmbiguityPatchShape()
 	{
-		vector<int> adj_faces;
-		if(p_mesh == NULL)
-			return adj_faces;
+		std::set< std::pair<int, int> > oped_pair;
+		for(size_t k=0; k<m_patch_array.size(); ++k){
+			const ParamPatch& patch = m_patch_array[k];
+			const std::vector<int>& nb_patch_vec = patch.m_nb_patch_index_array;
+			for(size_t i=0; i<nb_patch_vec.size(); ++i){
+				int nb_pid = nb_patch_vec[i];
+				if(oped_pair.find(std::make_pair(k, nb_pid)) == oped_pair.end() &&
+					oped_pair.find(std::make_pair(nb_pid, k)) == oped_pair.end())
+				{
+					OptimizeAmbiguityPatchPairShape(k, nb_pid);
+					oped_pair.insert(std::make_pair(k, nb_pid));
+				}
+			}
+		}
+	}
 
-		const PolyIndexArray& vf_adj_array = p_mesh->m_Kernel.GetVertexInfo().GetAdjFaces();
-		const IndexArray& adj_faces1 = vf_adj_array[vtx1];
-		const IndexArray& adj_faces2 = vf_adj_array[vtx2];
+    void ChartCreator::OptimizeAmbiguityPatchPairShape(int patch_id_1, int patch_id_2)
+    {
+        ParamPatch& param_patch_1 = m_patch_array[patch_id_1];
+        ParamPatch& param_patch_2 = m_patch_array[patch_id_2];
 
-		for(size_t k=0; k<adj_faces1.size(); ++k)
-		{
-			int fid = adj_faces1[k];
-			if(find(adj_faces2.begin(), adj_faces2.end(), fid) != adj_faces2.end())
-			{
-				adj_faces.push_back(fid);
+		/// find the two common edges
+		std::vector<int> common_edges;
+		const std::vector<int>& patch_edge_vec_1 = param_patch_1.m_edge_index_array;
+		const std::vector<int>& patch_edge_vec_2 = param_patch_2.m_edge_index_array;
+		for(size_t k=0; k<patch_edge_vec_1.size(); ++k){
+			if(find(patch_edge_vec_2.begin(), patch_edge_vec_2.end(), patch_edge_vec_1[k]) 
+				!= patch_edge_vec_2.end()) common_edges.push_back(patch_edge_vec_1[k]);
+		}
+		if(common_edges.size() !=2 ) return;
+
+		std::cout << "Optimize Ambiguity patch " << patch_id_1 << " " << patch_id_2 << std::endl;
+
+		int com_edge_idx_1 = common_edges[0], com_edge_idx_2 = common_edges[1], com_edge_idx_3(-1);
+		PatchEdge& patch_edge_1 = m_patch_edge_array[com_edge_idx_1];
+		PatchEdge& patch_edge_2 = m_patch_edge_array[com_edge_idx_2];
+
+		bool flag(false);
+		if(m_patch_conner_array[patch_edge_1.m_conner_pair_index.first].m_conner_type == 1
+			|| m_patch_conner_array[patch_edge_1.m_conner_pair_index.second].m_conner_type == 1){
+				flag = true;
+		}
+		com_edge_idx_3 = flag ? com_edge_idx_1 : com_edge_idx_2;
+
+		const std::vector<int>& inner_path = m_patch_edge_array[com_edge_idx_3].m_mesh_path;
+
+		/// find the common region of these two patchs
+		const std::vector<int>& face_vec_1 = param_patch_1.m_face_index_array;
+		const std::vector<int>& face_vec_2 = param_patch_2.m_face_index_array;
+		const PolyIndexArray& face_list_array = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+
+		std::set< std::pair<int, int> > region_mesh_edge_set;
+		for(size_t k=0; k<patch_edge_vec_1.size(); ++k){
+			const std::vector<int>& path = m_patch_edge_array[patch_edge_vec_2[k]].m_mesh_path;
+			for(size_t i=1; i<path.size(); ++i){
+				region_mesh_edge_set.insert(MakeEdge(path[i-1], path[i]));
+			}
+		}
+		for(size_t k=0; k<patch_edge_vec_2.size(); ++k){			
+			const std::vector<int>& path = m_patch_edge_array[patch_edge_vec_2[k]].m_mesh_path;
+			for(size_t i=1; i<path.size(); ++i){
+				region_mesh_edge_set.insert(MakeEdge(path[i-1],path[i]));
 			}
 		}
 
-		return adj_faces;
+		for(size_t k=0; k<face_vec_1.size(); ++k){
+			int fid = face_vec_1[k];
+			const IndexArray& face = face_list_array[fid];
+			for(int i=0; i<3; ++i){
+				if(find(inner_path.begin(), inner_path.end(), face[(i+1)%3]) != inner_path.end() &&
+					find(inner_path.begin(), inner_path.end(), face[i]) != inner_path.end()) continue;
+				region_mesh_edge_set.insert(MakeEdge(face[i], face[(i+1)%3]));
+			}
+		}
+		for(size_t k=0; k<face_vec_2.size(); ++k){
+			int fid = face_vec_2[k];
+			const IndexArray& face = face_list_array[fid];
+			for(int i=0; i<3; ++i){
+				if(find(inner_path.begin(), inner_path.end(), face[(i+1)%3]) != inner_path.end() &&
+					find(inner_path.begin(), inner_path.end(), face[i]) != inner_path.end()) continue;
+				region_mesh_edge_set.insert(MakeEdge(face[i], face[(i+1)%3]));
+			}
+		}
+
+		int vid1, vid2;
+		if(!flag){
+			vid1 = m_patch_conner_array[patch_edge_1.m_conner_pair_index.first].m_mesh_index;
+			vid2 = m_patch_conner_array[patch_edge_1.m_conner_pair_index.second].m_mesh_index;
+			FindShortestPathInRegion(p_mesh, vid1, vid2, region_mesh_edge_set, patch_edge_1.m_mesh_path);
+		}else{
+			vid1 = m_patch_conner_array[patch_edge_2.m_conner_pair_index.first].m_mesh_index;
+			vid2 = m_patch_conner_array[patch_edge_2.m_conner_pair_index.second].m_mesh_index;
+			FindShortestPathInRegion(p_mesh, vid1, vid2, region_mesh_edge_set, patch_edge_2.m_mesh_path);
+		}
+		FindPatchInnerFace(patch_id_1);
+		FindPatchInnerFace(patch_id_2);
+    }
+    
+	void ChartCreator::FindPatchInnerFace(int patch_id)
+	{
+		ParamPatch& patch = m_patch_array[patch_id];
+
+		std::vector<int> patch_bounary;
+		FormPatchBoundary(patch_id, patch_bounary);
+		FindInnerFace(p_mesh, patch_bounary, patch.m_face_index_array, m_half_edge);
 	}
 
+	void ChartCreator::FormPatchBoundary(int patch_id, std::vector<int>& boundary)
+	{
+		const ParamPatch& patch = m_patch_array[patch_id];
+		const std::vector<int>& conner_index_vec = patch.m_conner_index_array;
+		const std::vector<int>& edge_index_vec = patch.m_edge_index_array;
+
+		std::vector < std::vector<int> > path_vec(edge_index_vec.size());
+		for(size_t k=0; k<edge_index_vec.size(); ++k){
+			const PatchEdge& patch_edge = m_patch_edge_array[edge_index_vec[k]];
+			const std::vector<int>& path = patch_edge.m_mesh_path;
+			if(patch_edge.m_conner_pair_index.first == conner_index_vec[k]){				
+				for(size_t i=0; i<path.size()-1; ++i){
+					boundary.push_back(path[i]);
+				}
+			}else{
+				for(int i=(int)path.size()-1; i>0; --i){
+					boundary.push_back(path[i]);
+				}
+			}
+		}
+		boundary.push_back(boundary[0]);
+		reverse(boundary.begin(), boundary.end());
+	}
+	
 }

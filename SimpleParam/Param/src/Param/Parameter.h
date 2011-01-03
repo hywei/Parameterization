@@ -24,6 +24,8 @@ namespace PARAM
         Parameter(boost::shared_ptr<MeshModel> _p_mesh);
         ~Parameter();
 
+		void OptimizeAmbiguityPatch();
+
         bool ComputeParamCoord();
 
     public:

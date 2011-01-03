@@ -3,6 +3,8 @@
 
 #include "../Common/BasicDataType.h"
 #include <boost/shared_ptr.hpp>
+#include <set>
+#include <map>
 
 class MeshModel;
 class CMeshSparseMatrix;
@@ -62,9 +64,52 @@ namespace PARAM
 	void FaceValue2VtxColor(boost::shared_ptr<MeshModel> _mesh, const std::vector<double>& face_value);
 
 
+	inline std::pair<int, int> MakeEdge(int vid1, int vid2){ 
+		return (vid1 < vid2) ? std::make_pair(vid1, vid2) : std::make_pair(vid2, vid1); }
+
+	int FindShortestPathInRegion(boost::shared_ptr<MeshModel> p_mesh, int start_vid, int end_vid, 
+		const std::set< std::pair<int, int> >& region_edge_set, std::vector<int>& path);
+
 	/// get nearest vertex on a path from another vertex
 	double GetNearestVertexOnPath(boost::shared_ptr<MeshModel> p_mesh, int from_vert, 
 		const std::vector<int>& path, int& nearest_vid);
+
+	std::vector<int> GetMeshEdgeAdjFaces(boost::shared_ptr<MeshModel> p_mesh, int vid1, int vid2);
+
+	class _HE_edge
+	{
+	public:
+		_HE_edge() : pair(NULL), next(NULL) {}
+		_HE_edge(size_t _fid,  size_t _vid) : fid(_fid), vid(_vid), 
+			pair(NULL), next(NULL) {} 
+	public:
+		_HE_edge* pair;
+		_HE_edge* next;
+
+		size_t fid;
+		size_t vid;
+	};
+
+	typedef _HE_edge HE_edge;
+
+	class HalfEdge
+	{
+	private:
+		std::map< std::pair<size_t, size_t>, size_t> edge_map;
+		std::vector< _HE_edge* > hf_edge;
+	public:
+		HalfEdge();
+		~HalfEdge();
+
+		int CreateHalfEdge(boost::shared_ptr<MeshModel> mesh);
+
+		_HE_edge* GetHalfEdge(std::pair<size_t, size_t> e);
+		const _HE_edge* GetHalfEdge(std::pair<size_t, size_t> e) const;
+	};
+
+
+	int FindInnerFace(boost::shared_ptr<MeshModel> p_mesh, const std::vector<int>& boundary_path,  
+		std::vector<int>& face_set, const HalfEdge& half_edge);
 }
 
 #endif // PARAMTERIZATION_H_

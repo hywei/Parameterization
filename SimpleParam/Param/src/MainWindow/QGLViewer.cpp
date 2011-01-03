@@ -206,8 +206,8 @@ int QGLViewer::loadQuadFile()
 				PARAM::ParamDrawer(*p_param.get()));
 			
 			p_param->LoadPatchFile(f);
-            p_param->ComputeParamCoord();
-            p_param_drawer->SetUnCorrespondingVertArray(p_param->GetOutRangeVertArray());
+          //  p_param->ComputeParamCoord();
+          //  p_param_drawer->SetUnCorrespondingVertArray(p_param->GetOutRangeVertArray());
 			
 			
 		}else
@@ -234,6 +234,20 @@ void QGLViewer::CreateBoundaryTexture()
 {
 	if(p_opengl == NULL) return;
 	p_opengl->Create2DTexture(3);
+	updateGL();
+}
+
+void QGLViewer::OptimizeAmbiguityPatch()
+{
+	if(p_param == NULL) return;
+	p_param->OptimizeAmbiguityPatch();
+	updateGL();
+}
+
+void QGLViewer::SolveParameter()
+{
+	if(p_param == NULL) return;
+	p_param->ComputeParamCoord();
 	updateGL();
 }
 

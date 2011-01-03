@@ -34,6 +34,12 @@ namespace PARAM
 		return true;
 	}
 
+	void Parameter::OptimizeAmbiguityPatch()
+	{
+		if(!p_chart_creator) return;
+		p_chart_creator->OptimizeAmbiguityPatchShape();
+	}
+
 	bool Parameter::ComputeParamCoord()
 	{
 		if(p_mesh == NULL) return false;
@@ -46,44 +52,9 @@ namespace PARAM
 		SetInitFaceChartLayout();
 		SetInitVertChartLayout();        
 
-// 		TransFunctor tri_functor(p_chart_creator);
-// 		zjucad::matrix::matrix<double> tran_mat = tri_functor.GetTransMatrix(0, 1);
-// 		std::cout<< tran_mat <<std::endl;
-// 
-// 		ParamCoord to_param_coord(0, 0);	
-// 		
-// 		TransParamCoordBetweenCharts(1, 3, ParamCoord(1, 1), to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-// 
-// 		TransParamCoordBetweenCharts(1, 0, ParamCoord(1, 1), to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-// 		
-// 		ParamCoord pre_coord = to_param_coord;
-// 		TransParamCoordBetweenCharts(0, 2, pre_coord, to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-// 
-// 		pre_coord = to_param_coord;
-// 		TransParamCoordBetweenCharts(2, 3, pre_coord, to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-// 		
-// 
-// 		TransParamCoordBetweenCharts(2, 3, ParamCoord(0, 0), to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-// 
-// 		TransParamCoordBetweenCharts(2, 3, ParamCoord(1, 1), to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-// 
-// 		TransParamCoordBetweenCharts(3, 2, ParamCoord(1, 0), to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-// 
-// 		TransParamCoordBetweenCharts(3, 2, ParamCoord(0.633975, 1.36603), to_param_coord);
-// 		std::cout << to_param_coord.s_coord <<" " << to_param_coord.t_coord << std::endl;
-
-
-
 		CMeshSparseMatrix lap_mat;
-		SetLapMatrixCoef(p_mesh, lap_mat);
-		//SetLapMatrixCoefWithMeanValueCoord(p_mesh, lap_mat);
+		//SetLapMatrixCoef(p_mesh, lap_mat);
+		SetLapMatrixCoefWithMeanValueCoord(p_mesh, lap_mat);
 		
 		int loop_num = 1;
 		for(int k=0; k<loop_num; ++k)
@@ -275,19 +246,13 @@ namespace PARAM
 		vector<int> vari_index_mapping;
 		SetVariIndexMapping(vari_index_mapping);
 
-        // for(size_t k=0; k<m_vert_param_coord_array.size(); ++k){
-        //     if(vari_index_mapping[k] == -1)
-        //         std::cout << m_vert_chart_array[k] <<" " <<  m_vert_param_coord_array[k].s_coord << ' ' <<
-        //             m_vert_param_coord_array[k].t_coord << std::endl;
-        // }
-
 		int vari_num = (int)vari_index_mapping.size()*2;
 				
 		std::cout << "Begin solve parameterization: variable num "<< vari_num << std::endl;
 
 		LinearSolver linear_solver(vari_num);
 
-		SetBoundaryVertexParamValue(&linear_solver);        
+		SetBoundaryVertexParamValue();
 		
 		linear_solver.begin_equation();
 		for(int vid = 0; vid < vert_num; ++vid)
@@ -412,8 +377,8 @@ namespace PARAM
         
 		int vari_num = 0;
 		for(int vid=0; vid < vert_num; ++vid){
-			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid) ){
-//				|| find(conner_vertices.begin(), conner_vertices.end(), vid) != conner_vertices.end()){
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid) 
+				|| find(conner_vertices.begin(), conner_vertices.end(), vid) != conner_vertices.end()){
 				continue;
 			}
 			vari_index_mapping[vid] = vari_num++;
@@ -454,8 +419,6 @@ namespace PARAM
 
 					if(chart_id != adj_chart_id)
 					{
-// 						TransParamCoordBetweenCharts(chart_id, adj_chart_id, 
-// 							m_vert_param_coord_array[vid], param_coord);
 						TransParamCoordBetweenCharts(chart_id, adj_chart_id, vid, 
 							m_vert_param_coord_array[vid], param_coord);
 					}

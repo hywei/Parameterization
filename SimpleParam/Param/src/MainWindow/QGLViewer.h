@@ -67,6 +67,9 @@ public slots:
 	void CreateLineTexture();
 	void CreateBoundaryTexture();
 
+	void OptimizeAmbiguityPatch();
+	void SolveParameter();
+
 	void SetParamDrawerSelectVertMode();
 	void SetParamDrawerCorrespondMode();
 
