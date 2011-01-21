@@ -3,7 +3,7 @@
 
 #include "config.h"
 
-#include "../zjucad/matrix/matrix.h"
+#include <hj_3rd/zjucad/matrix/matrix.h>
 
 #include <vector>
 #include <map>
