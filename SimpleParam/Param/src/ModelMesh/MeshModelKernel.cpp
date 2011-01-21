@@ -92,6 +92,7 @@ void FaceInfo::ClearData()
     util.FreeVector(m_TexCoord);
     util.FreeVector(m_Flag);
 	util.FreeVector(m_FaceBaryCenter);
+	util.FreeVector(m_TexIndex);
 
     m_nFaces = 0;
 }

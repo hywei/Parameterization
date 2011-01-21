@@ -60,14 +60,17 @@ namespace PARAM
 	double xmult(double x1,double y1,double x2,double y2,double x0,double y0);		
 	double area_triangle(double x1,double y1,double x2,double y2,double x3,double y3);
 	double dis_ptoline(double x1,double y1,double x2,double y2,double ex,double ey);
+
+	double DistanceToTriangle( const Coord2D &p, const Coord2D &a, const Coord2D &b, const Coord2D &c );
 	
-	void FaceValue2VtxColor(boost::shared_ptr<MeshModel> _mesh, const std::vector<double>& face_value);
+	
+	void FaceValue2VtxColor(boost::shared_ptr<MeshModel> _mesh, std::vector<double>& face_value);
 
 
 	inline std::pair<int, int> MakeEdge(int vid1, int vid2){ 
 		return (vid1 < vid2) ? std::make_pair(vid1, vid2) : std::make_pair(vid2, vid1); }
 
-	int FindShortestPathInRegion(boost::shared_ptr<MeshModel> p_mesh, int start_vid, int end_vid, 
+	bool FindShortestPathInRegion(boost::shared_ptr<MeshModel> p_mesh, int start_vid, int end_vid, 
 		const std::set< std::pair<int, int> >& region_edge_set, std::vector<int>& path);
 
 	/// get nearest vertex on a path from another vertex

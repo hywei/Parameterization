@@ -56,8 +56,11 @@ signals:
 
 public slots:
 	void loadMeshModel();
+	void saveMeshModel();
 	int loadTextureImage();
 	int loadQuadFile();
+
+
 	
 	void mouseSpin();
 	void mouseMove();
@@ -70,6 +73,10 @@ public slots:
 	void OptimizeAmbiguityPatch();
 	void SolveParameter();
 
+	void SaveFaceTexCoord();
+	void LoadFaceTexCoord();
+
+	void SetParamDrawerSelectPatchMode();
 	void SetParamDrawerSelectVertMode();
 	void SetParamDrawerCorrespondMode();
 

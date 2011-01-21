@@ -10,7 +10,9 @@ set ( HEADERS Parameterization.h
               TransFunctor.h
               ParamDrawer.h
               TriDistortion.h
-              Parameter.h )
+              Parameter.h
+              CrossParameter.h
+              )
 
 set ( SOURCES Parameterization.cc
               Barycentric.cc
@@ -18,7 +20,9 @@ set ( SOURCES Parameterization.cc
               ChartCreator.cc
               ParamDrawer.cc
               TriDistortion.cc
-              Parameter.cc )
+              Parameter.cc
+              CrossParameter.cc
+              )
               
 
                   

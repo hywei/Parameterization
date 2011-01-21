@@ -24,16 +24,16 @@ namespace PARAM
                     && GreaterEqual(param_coord.t_coord, m_valid_range.first, LARGE_ZERO_EPSILON)
                     && LessEqual(param_coord.t_coord, m_valid_range.second, LARGE_ZERO_EPSILON);
             }else if(m_conner_param_coord_array.size() == 3){
-                double x = param_coord.s_coord, y = param_coord.t_coord;
-                //std::cout<< x <<" " << y << std::endl;
-                bool flag1 = (GreaterEqual(x, 0 , LARGE_ZERO_EPSILON) && LessEqual( x, 1, LARGE_ZERO_EPSILON));
-                bool flag2 = LessEqual( y - sqrt(3.0)*x, 0, LARGE_ZERO_EPSILON);
-                bool flag3 = LessEqual( y + sqrt(3.0)*(x - 1), 0, LARGE_ZERO_EPSILON);
-                bool flag4 = GreaterEqual(y, 0, LARGE_ZERO_EPSILON);
-                return flag1 && flag2 && flag3 && flag4;
-            }
+				Coord2D p(param_coord.s_coord, param_coord.t_coord);
+				Coord2D a(m_conner_param_coord_array[0].s_coord, m_conner_param_coord_array[0].t_coord);
+				Coord2D b(m_conner_param_coord_array[1].s_coord, m_conner_param_coord_array[1].t_coord);
+				Coord2D c(m_conner_param_coord_array[2].s_coord, m_conner_param_coord_array[2].t_coord);
 
-            return false;
+				double dist = DistanceToTriangle(p, a, b, c);
+				return (dist <= LARGE_ZERO_EPSILON) ;
+            }
+			return false;			
+			
 		}
 
 	public:

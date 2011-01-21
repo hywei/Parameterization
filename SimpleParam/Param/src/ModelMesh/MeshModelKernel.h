@@ -136,7 +136,8 @@ private:
     PolyTexCoordArray  m_TexCoord; // Face vertex-texture-coordinate array
     FlagArray          m_Flag;     // Face 32-bit flag array
 	CoordArray         m_FaceBaryCenter; // the barycenter of each face.
-	DoubleArray        m_FaceArea;
+	DoubleArray        m_FaceArea;	
+	PolyIndexArray     m_TexIndex; // Face vertex-texture-index array
      
     int m_nFaces;
 
@@ -158,6 +159,7 @@ public:
     FlagArray& GetFlag() { return m_Flag; }
 	CoordArray& GetBaryCenter() { return m_FaceBaryCenter; }
 	DoubleArray& GetFaceArea() { return m_FaceArea; }
+	PolyIndexArray& GetTexIndex() { return m_TexIndex; }
 
 };
 

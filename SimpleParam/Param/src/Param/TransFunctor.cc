@@ -16,11 +16,11 @@ namespace PARAM
 		: p_chart_creator(_p_chart_creator) {}
 	TransFunctor::~TransFunctor(){}
 
-	zjucad::matrix::matrix<double> TransFunctor::GetTransMatrix(int from_chart_id, int to_chart_id) const
+	zjucad::matrix::matrix<double> TransFunctor::GetTransMatrix(int from_chart_id, int to_chart_id, int vid) const
 	{
 		zjucad::matrix::matrix<double> trans_mat(zjucad::matrix::eye<double>(3));
 		if(from_chart_id == to_chart_id ) return trans_mat;
-		std::vector<int> trans_list;
+		std::vector<int> trans_list;		
 		if(!GetTranslistBetweenTwoCharts(from_chart_id, to_chart_id, trans_list))
 		{
 			std::cout<< "Cannot get the transition list!\n";
@@ -38,10 +38,39 @@ namespace PARAM
 		for(size_t k=1; k<trans_list.size(); ++k)
 		{	
 			zjucad::matrix::matrix<double> temp_trans_mat = trans_mat;
-			trans_mat =  GetTransMatrixOfAdjCharts(trans_list[k-1], trans_list[k]) * temp_trans_mat;
+			trans_mat =  GetTransMatrixOfAdjCharts(trans_list[k-1], trans_list[k], vid) * temp_trans_mat;
 		}
 
 		return trans_mat;
+	}
+
+	
+	zjucad::matrix::matrix<double> TransFunctor::GetTransMatrix(int from_vid, int from_chart_id, int to_vid, int to_chart_id) const
+	{
+
+		zjucad::matrix::matrix<double> trans_mat(zjucad::matrix::eye<double>(3));
+		if(from_chart_id == to_chart_id ) return trans_mat;
+		std::vector<int> trans_list;		
+		std::map < std::pair<int, int>, std::vector<int> >::const_iterator iter = m_edge_trans_list.find(std::make_pair(from_vid, to_vid));
+		if(iter != m_edge_trans_list.end()){
+			trans_list = iter->second;
+		}else{
+			if(!GetTranslistBetweenTwoCharts(from_chart_id, to_chart_id, trans_list))
+			{
+				std::cout<< "Cannot get the transition list!\n";
+				return trans_mat;
+			}
+		}
+		assert(trans_list.size() >=2);		
+
+		for(size_t k=1; k<trans_list.size(); ++k)
+		{	
+			zjucad::matrix::matrix<double> temp_trans_mat = trans_mat;
+			trans_mat =  GetTransMatrixOfAdjCharts(trans_list[k-1], trans_list[k],from_vid) * temp_trans_mat;
+		}
+
+		return trans_mat;
+
 	}
 
 	bool TransFunctor::GetTranslistBetweenTwoCharts(int from_chart_id, int to_chart_id, std::vector<int>& trans_list) const
@@ -127,11 +156,14 @@ namespace PARAM
 			double cross_v = x1*y2 - y1*x2;
 			double dot_v = x1*x2 + y1*y2;
 
+			double len1 = sqrt(x1*x1 + y1*y1);
+			double len2 = sqrt(x2*x2 + y2*y2);
+
             // std::cout << x1 << " " << y1 <<" " << x2 <<" " << y2 << std::endl;
             // std::cout << cross_v << " " << dot_v << std::endl;
 
-            double asin_angle = asin(cross_v);
-			double acos_angle = acos(dot_v);
+            double asin_angle = asin(cross_v/(len1*len2));
+			double acos_angle = acos(dot_v/(len1*len2));
 
             
 			double r_angle;
@@ -160,8 +192,12 @@ namespace PARAM
 		return r_mat*t_mat;
 	}
 
-	zjucad::matrix::matrix<double> TransFunctor::GetTransMatrixOfAdjCharts(int from_chart_id, int to_chart_id) const
+	zjucad::matrix::matrix<double> TransFunctor::GetTransMatrixOfAdjCharts(int from_chart_id, int to_chart_id, int vid) const
 	{
+		if(p_chart_creator->IsAmbiguityChartPair(from_chart_id, to_chart_id)){
+			return GetTransMatrixBetweenAmbiguityCharts(vid, from_chart_id, -1, to_chart_id);
+		}
+
 		const std::vector<ParamPatch>& patch_array = p_chart_creator->GetPatchArray();
 		const ParamPatch& from_patch = patch_array[from_chart_id];
 		const ParamPatch& to_patch = patch_array[to_chart_id];
@@ -239,7 +275,7 @@ namespace PARAM
 			return zjucad::matrix::eye<double>(3);
 		}else if(common_edges.size() == 1) {
 			std::cerr << "Error: These two charts only have one common edge, so they are not ambiguity chart pair!" << std::endl;
-			return GetTransMatrixOfAdjCharts(from_chart_id, to_chart_id);
+			return GetTransMatrixOfAdjCharts(from_chart_id, to_chart_id, from_vert);
 		}
 
 		int com_edge = ChooseEdgeForAmbiguityChart(common_edges, from_vert, to_vert);
@@ -351,7 +387,7 @@ namespace PARAM
 			double cur_dist = 0.0;
 			int nearest_vert;
 			cur_dist += GetNearestVertexOnPath(p_mesh, from_vert, mesh_path, nearest_vert);		
-			if(!to_vert) to_vert += GetNearestVertexOnPath(p_mesh, to_vert, mesh_path, nearest_vert);
+			if(to_vert!=-1) cur_dist += GetNearestVertexOnPath(p_mesh, to_vert, mesh_path, nearest_vert);
 			if(cur_dist < min_dist) {
 				min_dist = cur_dist;
 				com_edge = common_edges[k];

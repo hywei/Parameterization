@@ -49,6 +49,22 @@ namespace PARAM
 		return Coord(result_matrix(0, 0), result_matrix(1, 0), result_matrix(2, 0));
 	}
 
+	Barycentrc ComputeVertexBarycentric(const std::vector<Coord>& face_vert_coord_array,
+		const Coord& vtx_coord)
+	{
+		zjucad::matrix::matrix<double> coord_matrix(3, 3);
+		for(size_t r=0; r<3; ++r)
+		{
+			for(size_t c=0; c<3; ++c) coord_matrix(r, c) = face_vert_coord_array[c][r];
+		}
+		inv(coord_matrix);
+		zjucad::matrix::matrix<double> right_matrix(3, 1);
+		for(size_t r=0; r<3; ++r) right_matrix(r, 0) = vtx_coord[r];
+
+		zjucad::matrix::matrix<double> res_matrix = coord_matrix*right_matrix;
+		return Coord(res_matrix(0, 0), res_matrix(1, 0), res_matrix(2, 0));
+	}
+
 	Coord ComputeVertexCoord(const std::vector<Coord>& node_coord_array, const Barycentrc& baryc_coord)
 	{
 		

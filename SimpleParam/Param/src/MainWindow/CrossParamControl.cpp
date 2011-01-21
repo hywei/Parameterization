@@ -1,17 +1,15 @@
 #include "CrossParamControl.h"
 #include "../Param/CrossParameter.h"
-#include "../Param/QuadParameter.h"
+#include "../Param/Parameter.h"
 #include "../Param/ParamDrawer.h"
 #include "../ModelMesh/MeshModel.h"
+#include <fstream>
 
 CrossParamControl::CrossParamControl(QGLViewer* _gl_viewer_1, QGLViewer* _gl_viewer_2, QWidget* parent)
 : QWidget(parent)
 {
 	m_gl_viewer_1 = _gl_viewer_1;
-	m_gl_viewer_2 = _gl_viewer_2;
-    
-    //	p_cross_parameter = boost::shared_ptr<PARAM::CrossParameter> (new
-    //		PARAM::CrossParameter(*(m_gl_viewer_1->p_param), *(m_gl_viewer_2->p_param)));
+	m_gl_viewer_2 = _gl_viewer_2;    	
     
 	m_surface_1_group = CreateSurface1Group(this);
 	m_surface_2_group = CreateSurface2Group(this);
@@ -34,8 +32,8 @@ QGroupBox* CrossParamControl::CreateSurface1Group(QWidget* parent /* = 0 */)
 	load_surface_1_mesh->setText(tr("Load Surface 1 Mesh"));
 	QPushButton* load_surface_1_patch = new QPushButton(surface_1_group);
 	load_surface_1_patch->setText(tr("Load Surface 1 Patch"));
-	QPushButton* optimize_ambiguity_patch = new QPushButton(surface_1_group);
-	optimize_ambiguity_patch->setText(tr("Optimize Ambiguity Patch"));
+// 	QPushButton* optimize_ambiguity_patch = new QPushButton(surface_1_group);
+// 	optimize_ambiguity_patch->setText(tr("Optimize Ambiguity Patch"));
 	QPushButton* parameter_1 = new QPushButton(surface_1_group);
 	parameter_1->setText(tr("Parameter"));
 
@@ -43,13 +41,13 @@ QGroupBox* CrossParamControl::CreateSurface1Group(QWidget* parent /* = 0 */)
 	QVBoxLayout* surface_1_layout = new QVBoxLayout(surface_1_group);
 	surface_1_layout->addWidget(load_surface_1_mesh);
 	surface_1_layout->addWidget(load_surface_1_patch);
-	surface_1_layout->addWidget(optimize_ambiguity_patch);
+//	surface_1_layout->addWidget(optimize_ambiguity_patch);
 	surface_1_layout->addWidget(parameter_1);
 
 	/// connections
 	connect(load_surface_1_mesh, SIGNAL(clicked()), m_gl_viewer_1, SLOT(loadMeshModel()));
 	connect(load_surface_1_patch, SIGNAL(clicked()), m_gl_viewer_1, SLOT(loadQuadFile()));
-	connect(optimize_ambiguity_patch, SIGNAL(clicked()), m_gl_viewer_1, SLOT(OptimizeAmbiguityPatch()));
+//	connect(optimize_ambiguity_patch, SIGNAL(clicked()), m_gl_viewer_1, SLOT(OptimizeAmbiguityPatch()));
 	connect(parameter_1, SIGNAL(clicked()), m_gl_viewer_1, SLOT(SolveParameter()));
 
 	return surface_1_group;
@@ -66,16 +64,29 @@ QGroupBox* CrossParamControl::CreateSurface2Group(QWidget* parent /* = 0 */)
 	load_surface_2_mesh->setText(tr("Load Surface 2 Mesh"));
 	QPushButton* load_surface_2_patch = new QPushButton(surface_2_group);
 	load_surface_2_patch->setText(tr("Load Surface 2 Patch"));
+	QPushButton* parameter_2 = new QPushButton(surface_2_group);
+	parameter_2->setText(tr("Parameter"));
+
+	QPushButton* save_face_tex = new QPushButton(surface_2_group);
+	save_face_tex->setText(tr("Save face tex coord"));
+	QPushButton* load_face_tex = new QPushButton(surface_2_group);
+	load_face_tex->setText(tr("Load face tex coord"));
 
 	/// layout
 	QVBoxLayout* surface_2_layout = new QVBoxLayout(surface_2_group);
 	surface_2_layout->setSpacing(10);
 	surface_2_layout->addWidget(load_surface_2_mesh);
 	surface_2_layout->addWidget(load_surface_2_patch);
+	surface_2_layout->addWidget(parameter_2);
+	surface_2_layout->addWidget(save_face_tex);
+	surface_2_layout->addWidget(load_face_tex);
 
 	/// connections
 	connect(load_surface_2_mesh, SIGNAL(clicked()), m_gl_viewer_2, SLOT(loadMeshModel()));
 	connect(load_surface_2_patch, SIGNAL(clicked()), m_gl_viewer_2, SLOT(loadQuadFile()));
+	connect(parameter_2, SIGNAL(clicked()), m_gl_viewer_2, SLOT(SolveParameter()));
+	connect(save_face_tex, SIGNAL(clicked()), m_gl_viewer_2, SLOT(SaveFaceTexCoord()));
+	connect(load_face_tex, SIGNAL(clicked()), m_gl_viewer_2, SLOT(LoadFaceTexCoord()));
 	
 	return surface_2_group;
 }
@@ -151,53 +162,50 @@ QGroupBox* CrossParamControl::CreateVisualizationGroup(QWidget* parent /* = 0 */
 	QCheckBox* patch_conner = new QCheckBox(visual_group);
 	QCheckBox* patch_edge = new QCheckBox(visual_group);
 	QCheckBox* patch_face = new QCheckBox(visual_group);
-	
-// 	QRadioButton* param_texture = new QRadioButton(visual_group);
-// 	QCheckBox* single_param_texture = new QCheckBox(param_texture);	
-// 	QCheckBox* united_param_texture = new QCheckBox(param_texture);
-// 
-// 	QRadioButton* param_distortion = new QRadioButton(visual_group);
-// 	QCheckBox* single_param_distortion = new QCheckBox(param_distortion);
-// 	QCheckBox* united_param_distortion = new QCheckBox(param_distortion);
+	QCheckBox* outrange_vert = new QCheckBox(visual_group);
+	QCheckBox* select_patch = new QCheckBox(visual_group);
+	QCheckBox* flipped_triangle = new QCheckBox(visual_group);
+	QCheckBox* corresponding = new QCheckBox(visual_group);
+	QCheckBox* uncorresponding_vert = new QCheckBox(visual_group);
 
-//	patch_layout->setText(tr("Patch Layout"));
+
 	patch_conner->setText(tr("Patch Conner"));
 	patch_edge ->setText(tr("Patch Edge"));
 	patch_face ->setText(tr("Patch Face"));
+	outrange_vert->setText(tr("Out Range Vertex"));
+	select_patch->setText(tr("Selected Patch"));
+	flipped_triangle ->setText("Flipped Triangle");
+	corresponding->setText("Corresponding");
+	uncorresponding_vert->setText("UnCorresponding Vert");
 
-// 	param_texture ->setText(tr("Parameter Texture"));
-// 	single_param_texture->setText(tr("Single Parameter Texture"));
-//    	united_param_texture->setText(tr("United Param Texture"));
-// 
-// 	param_distortion->setText(tr("Parameter Distortion"));
-// 	single_param_distortion->setText(tr("Single Param Distortion"));
-// 	united_param_distortion->setText(tr("United Param Distortion"));
-
-// 	patch_layout->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);	
 	patch_conner->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	patch_edge->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	patch_face->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-// 	single_param_texture->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-// 	single_param_distortion->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-// 	united_param_texture->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-// 	united_param_distortion->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	outrange_vert->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	select_patch->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	flipped_triangle->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	corresponding->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	uncorresponding_vert->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
 	QVBoxLayout* visual_layout = new QVBoxLayout(visual_group);
-//	visual_layout->addWidget(patch_layout);
 	visual_layout->addWidget(patch_conner);
 	visual_layout->addWidget(patch_edge);
 	visual_layout->addWidget(patch_face);
-//	visual_layout->addWidget(param_texture);
-//	visual_layout->addWidget(single_param_texture);
-//	visual_layout->addWidget(united_param_texture);
-//	visual_layout->addWidget(param_distortion);
-//	visual_layout->addWidget(single_param_distortion);
-//	visual_layout->addWidget(united_param_distortion);
+	visual_layout->addWidget(outrange_vert);
+	visual_layout->addWidget(select_patch);
+	visual_layout->addWidget(flipped_triangle);
+	visual_layout->addWidget(corresponding);
+	visual_layout->addWidget(uncorresponding_vert);
 
 	/// connects
 	connect(patch_conner, SIGNAL(toggled(bool)), this, SLOT(SetPatchConnerDisplay(bool)));
     connect(patch_edge, SIGNAL(toggled(bool)), this, SLOT(SetPatchEdgeDisplay(bool)));
     connect(patch_face, SIGNAL(toggled(bool)), this, SLOT(SetPatchFaceDisplay(bool)));
+	connect(outrange_vert, SIGNAL(toggled(bool)), this, SLOT(SetOutRangeVertDisplay(bool)));
+	connect(select_patch, SIGNAL(toggled(bool)), this, SLOT(SetSelectedPatchDisplay(bool)));
+	connect(flipped_triangle, SIGNAL(toggled(bool)), this, SLOT(SetFlippedTriangleDisplay(bool)));
+	connect(corresponding, SIGNAL(toggled(bool)), this, SLOT(SetCorrespondingDisplay(bool)));
+	connect(uncorresponding_vert, SIGNAL(toggled(bool)), this, SLOT(SetUnCorrespondingDisplay(bool)));
 
 	return visual_group;
 }
@@ -219,14 +227,121 @@ QGroupBox* CrossParamControl::CreateCorrespondingGroup(QWidget* parent /* = 0 */
 	corresponding_group->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
 	corresponding_group->setTitle("Corresponding");
 
+	QPushButton* load_corresponding = new QPushButton(tr("Load Corresponding"));
 	QPushButton* corresponding = new QPushButton(tr("Corresponding"));
+	QPushButton* select_patch = new QPushButton(tr("Select Patch"));
+
+	connect(load_corresponding, SIGNAL(clicked()), this, SLOT(LoadCorrespondingFile()));
+	connect(select_patch, SIGNAL(clicked()), m_gl_viewer_1, SLOT(SetParamDrawerSelectPatchMode()));
 	connect(corresponding, SIGNAL(clicked()), m_gl_viewer_1, SLOT(SetParamDrawerSelectVertMode()));
 	connect(corresponding, SIGNAL(clicked()), m_gl_viewer_2, SLOT(SetParamDrawerCorrespondMode()));
     
 	/// layout
 	QVBoxLayout* corresponding_layout = new QVBoxLayout(corresponding_group);
+	corresponding_layout->addWidget(load_corresponding);
 	corresponding_layout->addWidget(corresponding);
+	corresponding_layout->addWidget(select_patch);
+
 	return corresponding_group;
+}
+
+void CrossParamControl::LoadCorrespondingFile()
+{
+	std::string prev_file_path;
+	ifstream fin ("open_file_path.txt");
+	if(!fin.fail()){
+		fin >> prev_file_path; 
+	}
+	fin.close();
+
+	QString fileName = QFileDialog::getOpenFileName(
+		this,
+		tr("Open Corresponding File"),
+		tr(prev_file_path.c_str()),
+		tr("Corr file(*.corr);;"
+		"All files(*)"));
+	std::string f = std::string((const char *) fileName.toLocal8Bit());
+	if(f.size() != 0)
+	{
+		p_cross_parameter = p_cross_parameter = boost::shared_ptr<PARAM::CrossParameter> (new
+			PARAM::CrossParameter(*(m_gl_viewer_1->p_param), *(m_gl_viewer_2->p_param)));
+
+		p_cross_parameter->LoadCorrespondingFile(f);
+		
+		std::string file_path, file_title, file_ext;
+		Utility util;
+		util.ResolveFileName(f, file_path, file_title, file_ext);
+		ofstream fout("open_file_path.txt");
+		if(!fout.fail()){
+			fout << file_path << std::endl;
+		}
+		fout.close();
+		
+	} 
+	
+}
+
+void CrossParamControl::FindCorrespondingOnA()
+{
+	int vid = m_gl_viewer_2->p_param_drawer->GetSelectedVertID();
+	if(vid == -1) return;
+	if(m_gl_viewer_2->p_param == NULL) return;
+	if(m_gl_viewer_1->p_param_drawer == NULL) return;
+	if(p_cross_parameter == NULL) return;
+	int chart_id = m_gl_viewer_2->p_param->GetVertexChartID(vid);
+	PARAM::ParamCoord param_coord = m_gl_viewer_2->p_param->GetVertexParamCoord(vid);
+	PARAM::ChartParamCoord chart_param_coord(param_coord, chart_id);
+	PARAM::SurfaceCoord surface_coord;
+	p_cross_parameter->GetSurfaceCoordOnA(chart_param_coord, surface_coord);
+	m_gl_viewer_1->p_param_drawer->SetSelectedVertCoord(surface_coord);
+	m_gl_viewer_1->updateGL();
+}
+
+void CrossParamControl::FindCorrespondingOnB()
+{
+//	int vid = m_gl_viewer_1->p_param_drawer->GetSelectedVertID();
+	PARAM::SurfaceCoord surf_coord = m_gl_viewer_1->p_param_drawer->GetSelectedSurfaceCorod();
+	if(surf_coord.face_index == -1) return;
+	if(m_gl_viewer_1->p_param == NULL) return;
+	if(m_gl_viewer_2->p_param_drawer == NULL) return;
+	if(p_cross_parameter == NULL) return;
+
+	int fid = surf_coord.face_index;
+	PARAM::Barycentrc baryc = surf_coord.barycentric;
+
+	const PolyIndexArray& fIndex1 = m_gl_viewer_1->p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+	const PolyIndexArray& fIndex2 = m_gl_viewer_2->p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+	const CoordArray& vCoord2 = m_gl_viewer_2->p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+
+	const IndexArray& face1 = fIndex1[fid];
+	std::vector<PARAM::SurfaceCoord> face_vert_sf_vec(3);
+	std::vector<Coord> face_vert_coord_vec(3); 
+	for(int i=0; i<3; ++i)
+	{
+		int vid = face1[i];   
+		PARAM::SurfaceCoord surf_coord = p_cross_parameter->m_corresponding_AB[vid];
+		int _fid = surf_coord.face_index;
+		if(_fid == -1) { std::cerr <<" Fid == -1" << std::endl; return;}
+		PARAM::Barycentrc _baryc = surf_coord.barycentric;
+		const IndexArray& face2 = fIndex2[_fid];	
+		face_vert_coord_vec[i] = vCoord2[face2[0]]*_baryc[0] + vCoord2[face2[1]]*_baryc[1] + vCoord2[face2[2]]*_baryc[2];
+
+	//	int chart_id = m_gl_viewer_1->p_param->GetVertexChartID(vid);
+	//	PARAM::ParamCoord param_coord = m_gl_viewer_1->p_param->GetVertexParamCoord(vid);
+		//std::cout << "Surface A --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
+	//	PARAM::ChartParamCoord chart_param_coord(param_coord, chart_id);
+
+		 face_vert_sf_vec[i]= p_cross_parameter->m_corresponding_AB[vid];
+	}
+	Coord corr_coord = face_vert_coord_vec[0]*baryc[0] + face_vert_coord_vec[1]*baryc[1] + face_vert_coord_vec[2]*baryc[2];
+
+//	p_cross_parameter->GetSurfaceCoordOnB(chart_param_coord, surface_coord);
+//	m_gl_viewer_2->p_param_drawer->SetSelectedVertCoord(surface_coord);
+	m_gl_viewer_2->p_param_drawer->SetSelectedVertCoord(corr_coord);
+
+	int vid_2 = m_gl_viewer_2->p_param_drawer->GetSelectedVertID();
+//	std::cout << "Surface B --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" "<<param_coord.t_coord << std::endl;
+	m_gl_viewer_2->updateGL();
 }
 
 void CrossParamControl::ComputeCrossParam()
@@ -234,9 +349,25 @@ void CrossParamControl::ComputeCrossParam()
 	if(m_gl_viewer_1 == 0 || m_gl_viewer_2 == 0) return;
 	if(m_gl_viewer_1->p_param == 0 || m_gl_viewer_2->p_param == 0) return;
 
-	// p_cross_parameter->FindCorrespondingAB();
+	p_cross_parameter->FindCorrespondingAB();
+
+// 	p_cross_parameter->FindCorrespondingBA();
+// 	p_cross_parameter->VertTextureTransferBA();
+// 
+// 	const std::vector<TexCoord>& vert_tex_array_B = p_cross_parameter->GetTransferedVertTexArrayB();
+// 
+// 	boost::shared_ptr<MeshModel> p_mesh_B = m_gl_viewer_2->p_mesh;
+// 	p_mesh_B->m_Kernel.GetVertexInfo().GetTexCoord() = vert_tex_array_B;
+// 	p_mesh_B->m_Kernel.GetFaceInfo().GetTexIndex() = (p_mesh_B->m_Kernel.GetFaceInfo().GetIndex());
+
+// 	p_cross_parameter->FaceTextureTransferBA();
+// 
+// 	const std::vector<TexCoordArray>& face_tex_array_B = p_cross_parameter->GetTransferedFaceTexArrayB();
+// 
+// 	boost::shared_ptr<MeshModel> p_mesh_B = m_gl_viewer_2->p_mesh;
+// 	p_mesh_B->m_Kernel.GetFaceInfo().GetTexCoord() = face_tex_array_B;
 	
-	// m_gl_viewer_1->p_param_drawer->SetUnCorrespondingVertArray(p_cross_parameter->GetUnCorrespondingVertArrayOnA());
+	m_gl_viewer_2->p_param_drawer->SetUnCorrespondingVertArray(p_cross_parameter->GetUnCorrespondingVertArrayOnB());
 }
 
 void CrossParamControl::OptimizeCrossParam()
@@ -284,6 +415,62 @@ void CrossParamControl::SetPatchFaceDisplay(bool toggled)
 	}
 }
 
+void CrossParamControl::SetOutRangeVertDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer){
+		m_gl_viewer_1->p_param_drawer->SetDrawOutRangeVertices(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+
+	if(m_gl_viewer_2 && m_gl_viewer_2->p_param_drawer){
+		m_gl_viewer_2->p_param_drawer->SetDrawOutRangeVertices(toggled);
+		m_gl_viewer_2->updateGL();
+	}
+}
+
+void CrossParamControl::SetSelectedPatchDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer){
+		m_gl_viewer_1->p_param_drawer->SetDrawSelectedPatch(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+}
+
+void CrossParamControl::SetFlippedTriangleDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer){
+		m_gl_viewer_1->p_param_drawer->SetDrawFlipFace(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+}
+
+void CrossParamControl::SetCorrespondingDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer){
+		m_gl_viewer_1->p_param_drawer->SetDrawSelectedVertex(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+
+	if(m_gl_viewer_2 && m_gl_viewer_2->p_param_drawer){
+		m_gl_viewer_2->p_param_drawer->SetDrawSelectedVertex(toggled);
+		m_gl_viewer_2->updateGL();
+	}
+
+}
+
+void CrossParamControl::SetUnCorrespondingDisplay(bool toggled)
+{
+	if(m_gl_viewer_1 && m_gl_viewer_1->p_param_drawer){
+		m_gl_viewer_1->p_param_drawer->SetDrawUnCorresponding(toggled);
+		m_gl_viewer_1->updateGL();
+	}
+
+	if(m_gl_viewer_2 && m_gl_viewer_2->p_param_drawer){
+		m_gl_viewer_2->p_param_drawer->SetDrawUnCorresponding(toggled);
+		m_gl_viewer_2->updateGL();
+	}
+}
+
 void CrossParamControl::CreateMainLayout()
 {
    QGroupBox* main_group = new QGroupBox(this);
@@ -295,10 +482,10 @@ void CrossParamControl::CreateMainLayout()
    main_group_layout->setSpacing(30);
    main_group_layout->addWidget(m_surface_1_group);
    main_group_layout->addWidget(m_surface_2_group);
+   main_group_layout->addWidget(m_corresponding_group);
    main_group_layout->addWidget(m_cross_param_group);
    main_group_layout->addWidget(m_texture_setting_group);
    main_group_layout->addWidget(m_visualization_group);
-   main_group_layout->addWidget(m_corresponding_group);
    main_group_layout->addStretch(1);
 
 }

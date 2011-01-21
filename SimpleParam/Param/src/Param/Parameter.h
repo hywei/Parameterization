@@ -32,8 +32,12 @@ namespace PARAM
         //! IO
         bool LoadPatchFile(const std::string& file_name);
 
+		int GetFaceChartID(int fid) const { return m_face_chart_array[fid]; }
         int GetVertexChartID(int vid) const { return m_vert_chart_array[vid];}
 		ParamCoord GetVertexParamCoord(int vid)  const { return m_vert_param_coord_array[vid]; }
+
+		std::vector<ParamCoord> GetFaceVertParamCoord(int fid) const ;
+
 
 		const std::vector<int>& GetVertexChartArray() const { return m_vert_chart_array; }
 		const std::vector<ParamCoord>& GetVertexParamCoordArray() const { return m_vert_param_coord_array; }
@@ -45,9 +49,10 @@ namespace PARAM
 		const std::vector<int>& GetOutRangeVertArray() const { return m_out_range_vert_array; }
 		const std::vector<int>& GetUnSetFaceArray() const { return m_unset_layout_face_array; }	
 		const std::vector<int>& GetFlipedFaceArray() const { return m_fliped_face_array; }
-
+		const std::vector<int>& GetVertexPatchArray() const { return m_vert_patch_array; }
+		const std::vector<int>& GetFacePatchArray() const {return m_face_patch_array; }
 	private:
-		void SetVariIndexMapping(std::vector<int>& vari_index_mapping);
+		int SetVariIndexMapping(std::vector<int>& vari_index_mapping);
 		void SetBoundaryVertexParamValue(LinearSolver* p_linear_solver = NULL);
         
 		void SolveParameter(const CMeshSparseMatrix& lap_mat);
@@ -55,14 +60,16 @@ namespace PARAM
 		//! after each iterator, we need reassign vertices's chart  
 		void AdjustPatchBoundary();
 
+		void VertexRelalaxation();
+
 		void SetInitVertChartLayout();
 		void SetInitFaceChartLayout();
 		
 	  
 		void GetOutRangeVertices(std::vector<int>& out_range_vert_array) const;
 		bool FindValidChartForOutRangeVertex(int our_range_vert, int max_ringe_num = 5);
-		double ComputeOutRangeError4Square(ParamCoord param_coord) const;
-		double ComputeOutRangeError4EqualTriangle(ParamCoord param_coord) const;
+		double ComputeOutRangeError4Square(ParamCoord param_coord) const;		
+		double ComputeOutRangeError4TriangleChart(ParamCoord param_coord, int chart_id);
 
 		//! get the length of a mesh path
 		double ComputeMeshPathLength(const std::vector<int>& mesh_path, int start_idx, int end_idx) const;
@@ -86,13 +93,45 @@ namespace PARAM
 		void CheckFlipedTriangle();
 
 		//! check two charts is ambiguity(have more than one common edges)? 
-		bool IsAmbiguityChartPair(int chart_id_1, int chart_id_2) const;
+		bool IsAmbiguityChartPair(int chart_id_1, int chart_id_2) const;		
+
+		bool IsConnerVertex(int vert_vid) const;
+
+		bool GetConnerParamCoord(int chart_id, int conner_idx, ParamCoord& conner_pc) const;
+
+	private:
+		/// Conner Relocating
+		void ConnerRelocating();
+	    void ComputeConnerVertexNewParamCoord(int conner_vid, ParamCoord& new_pc) const;
+
+		void FixAdjustedVertex(bool with_conner = false);
+		bool FixAdjustedVertex(int vid);
+
+	private:
+		//! LocalStiffening;
+		void LocalStiffening();
+
+		void ComputeFaceSignFuncValue(std::vector<int>& face_sign_func_value) ;//const;
+		void ComputeFaceLocalDistortion(const std::vector<int>& face_sign_func_value, std::vector<double>& face_distortion) const;
+		void UpdateStiffeningWeight(const std::vector<double>& face_distortion);
+
+		void SetLapMatrixWithStiffeningWeight(CMeshSparseMatrix& stiffen_lap_mat);
+		void SetMeanValueLapMatrixWithStiffeningWeight(CMeshSparseMatrix& stiffen_lap_mat);
+		
+
+		int SignFunc(double value) const
+		{
+			if(fabs(value) < LARGE_ZERO_EPSILON) return 0;
+			if(value > 0) return 1;
+			else return -1;
+		}
 
 	public:
+
 		zjucad::matrix::matrix<double> GetTransMatrix(int from_vid, int to_vid, int from_chart_id, int to_chart_id) const;
 
-		void TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, 
-			const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const;
+// 		void TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, 
+// 			const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const;
 		void TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, int vid, 
 			const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const;
 		//! for one face's three vertices, they may be in different chart, and we need transite them to same chart.
@@ -113,10 +152,19 @@ namespace PARAM
 		std::vector<ParamCoord> m_vert_param_coord_array; //! each vertex's parameter coordinate
 		std::vector< std::vector<int> > m_chart_vertices_array; //! 
 
+		std::vector<int> m_fixed_conner_array;
+
 		//! for debug
 		std::vector<int> m_out_range_vert_array;
 		std::vector<int> m_unset_layout_face_array;  
 		std::vector<int> m_fliped_face_array;
+
+		std::vector<int> m_vert_patch_array;
+		std::vector<int> m_face_patch_array;
+
+		std::vector<double> m_stiffen_weight;
+
+		std::vector<bool> m_flippd_face;
     };
 } 
 

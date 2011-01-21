@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <float.h>
 #include <set>
+#include <iostream>
 #include <fstream>
 #include <stdio.h> 
 #include <memory>
@@ -128,6 +129,11 @@ void LinearSolver::end_row()
 {
 	m_equation_vec.push_back(m_current_equ);
 
+// 	for(size_t k=0; k<m_current_equ.size(); ++k)
+// 	{
+// 		std::cout << m_current_equ[k].second <<" ";
+// 	}
+// 	std::cout << std::endl;
 	//m_tmp_equation_vec.push_back(m_tmp_current_equ);
 }
 

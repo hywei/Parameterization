@@ -373,9 +373,13 @@ void MeshModelRender::DrawModelFaceTexture()
 	//glShadeModel(GL_SMOOTH);
 
 	CoordArray& vCoord = kernel->GetVertexInfo().GetCoord();
+	TexCoordArray& vTexCoord = kernel->GetVertexInfo().GetTexCoord();
 	PolyTexCoordArray& fTexCoord = kernel->GetFaceInfo().GetTexCoord();
 	NormalArray& fNormal = kernel->GetFaceInfo().GetNormal();
 	PolyIndexArray& fIndex = kernel->GetFaceInfo().GetIndex();
+	PolyIndexArray& ftIndex = kernel->GetFaceInfo().GetTexIndex();
+
+	if(fTexCoord.size() ==0) return;
 
 	size_t nFace = fIndex.size();
 	size_t i, j, n;
@@ -397,6 +401,7 @@ void MeshModelRender::DrawModelFaceTexture()
 		for(i = 0; i < nFace; ++ i)
 		{
 			IndexArray& face = fIndex[i];
+			IndexArray& tex_index = ftIndex[i];
 			TexCoordArray& f_tex = fTexCoord[i];
 			Normal& fn = fNormal[i];
 
@@ -405,9 +410,10 @@ void MeshModelRender::DrawModelFaceTexture()
 			{
 				VertexID& vID = face[j];
 				Coord& v = vCoord[vID];
-
+				const TexCoord& tex = vTexCoord[tex_index[j]];
 				glNormal3d(fn[0], fn[1], fn[2]);
-				glTexCoord2d(f_tex[j][0], f_tex[j][1]);
+				glTexCoord2d(tex[0], tex[1]);
+				//glTexCoord2d(f_tex[j][0], f_tex[j][1]);
 				glVertex3d(v[0], v[1], v[2]);
 			}
 		}

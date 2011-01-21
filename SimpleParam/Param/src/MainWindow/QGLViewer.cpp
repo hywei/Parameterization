@@ -66,6 +66,10 @@ void QGLViewer::init(void)
 	p_UIHander->GetMouseMode() = MOUSE_MODE_SPIN;
 	p_util = boost::shared_ptr<Utility> (new Utility);
 
+
+	p_param = boost::shared_ptr<PARAM::Parameter> (new PARAM::Parameter(p_mesh));
+	p_param_drawer = boost::shared_ptr<PARAM::ParamDrawer> (new
+		PARAM::ParamDrawer(*p_param.get()));
 }
 
 
@@ -137,9 +141,16 @@ void QGLViewer::createPopMenu()
 // ----------------- public slots ------------------
 void QGLViewer::loadMeshModel()
 {
+	std::string prev_file_name;
+	ifstream fin ("open_file_path.txt");
+	if(!fin.fail()){
+		fin >> prev_file_name; 
+	}
+	fin.close();
+
 	QString fileName = QFileDialog::getOpenFileName(this,
 		tr("Open mesh file"),
-		tr(""),
+		tr(prev_file_name.c_str()),
 		tr("OBJ Files (*.obj);;"
 		"OFF Files (*.off);;"
 		"STL Files (*.stl);;"
@@ -156,21 +167,71 @@ void QGLViewer::loadMeshModel()
 		p_opengl->OnInit();
 		p_opengl->SetObjectInfo(center[0], center[1], center[2], radius);
 		p_opengl->OnResize(this->width(), this->height());
-// 		p_param->SetMeshTexCoordForGrid16();
 		p_opengl->Create2DTexture(1);
 
 		p_param.reset();
 		p_param_drawer.reset();
 
 		updateGL();
-	}
+
+		std::string file_path, file_title, file_ext;
+		Utility util;
+		util.ResolveFileName(f, file_path, file_title, file_ext);
+
+		ofstream fout("open_file_path.txt");
+		if(!fout.fail()){
+			fout << file_path << std::endl;
+		}
+		fout.close();
+	}	
 }
+
+void QGLViewer::saveMeshModel()
+{
+	std::string prev_file_name;
+	ifstream fin ("open_file_path.txt");
+	if(!fin.fail()){
+		fin >> prev_file_name; 
+	}
+	fin.close();
+
+	QString fileName = QFileDialog::getSaveFileName(this,
+		tr("Save mesh file"),
+		tr(prev_file_name.c_str()),
+		tr("OBJ Files (*.obj);;"
+		"OFF Files (*.off);;"
+		"STL Files (*.stl);;"
+		"All Files (*)"));
+	std::string f = std::string((const char *)fileName.toLocal8Bit());
+	if(f.size()!=0)
+	{
+		if(p_mesh == NULL) return;
+		p_mesh->StoreModel(f);
+		std::string file_path, file_title, file_ext;
+		Utility util;
+		util.ResolveFileName(f, file_path, file_title, file_ext);
+
+		ofstream fout("open_file_path.txt");
+		if(!fout.fail()){
+			fout << file_path << std::endl;
+		}
+		fout.close();
+	}	
+}
+
 int QGLViewer::loadTextureImage()
 {
+	std::string prev_file_path;
+	ifstream fin ("open_file_path.txt");
+	if(!fin.fail()){
+		fin >> prev_file_path; 
+	}
+	fin.close();
+
 	QString fileName = QFileDialog::getOpenFileName(
 		this,
 		tr("Open Texture Image File"),
-		tr(""),
+		tr(prev_file_path.c_str()),
 		tr("Image file(*.bmp);;"));
 	std::string f = std::string((const char *)fileName.toLocal8Bit());
 	if(f.size() != 0)
@@ -181,6 +242,16 @@ int QGLViewer::loadTextureImage()
 			p_mesh->CreateTexture(f);
 			p_opengl->OnEndPaint();
 			updateGL();
+
+			std::string file_path, file_title, file_ext;
+			Utility util;
+			util.ResolveFileName(f, file_path, file_title, file_ext);
+
+			ofstream fout("open_file_path.txt");
+			if(!fout.fail()){
+				fout << file_path << std::endl;
+			}
+			fout.close();
 		}else
 			return -1;
 	}else{
@@ -190,10 +261,17 @@ int QGLViewer::loadTextureImage()
 }
 int QGLViewer::loadQuadFile()
 {
+	std::string prev_file_path;
+	ifstream fin ("open_file_path.txt");
+	if(!fin.fail()){
+		fin >> prev_file_path; 
+	}
+	fin.close();
+
 	QString fileName = QFileDialog::getOpenFileName(
 		this,
 		tr("Open Quad File"),
-		tr(""),
+		tr(prev_file_path.c_str()),
 		tr("Quad file(*.quad);;"
         "All files(*)"));
 	std::string f = std::string((const char *) fileName.toLocal8Bit());
@@ -205,11 +283,20 @@ int QGLViewer::loadQuadFile()
 			p_param_drawer = boost::shared_ptr<PARAM::ParamDrawer> (new
 				PARAM::ParamDrawer(*p_param.get()));
 			
-			p_param->LoadPatchFile(f);
-          //  p_param->ComputeParamCoord();
-          //  p_param_drawer->SetUnCorrespondingVertArray(p_param->GetOutRangeVertArray());
-			
-			
+			p_param->LoadPatchFile(f);		
+
+			updateGL();
+
+			std::string file_path, file_title, file_ext;
+			Utility util;
+			util.ResolveFileName(f, file_path, file_title, file_ext);
+
+			ofstream fout("open_file_path.txt");
+			if(!fout.fail()){
+				fout << file_path << std::endl;
+			}
+			fout.close();
+
 		}else
 			return -1;
 	}else{
@@ -251,6 +338,122 @@ void QGLViewer::SolveParameter()
 	updateGL();
 }
 
+void QGLViewer::LoadFaceTexCoord()
+{
+	if(p_mesh == NULL) return;
+	std::string prev_file_path;
+	ifstream fin ("open_file_path.txt");
+	if(!fin.fail()){
+		fin >> prev_file_path; 
+	}
+	fin.close();
+
+	QString fileName = QFileDialog::getOpenFileName(
+		this,
+		tr("Open Face Texture Coord File"),
+		tr(prev_file_path.c_str()),
+		tr("Face Texture file(*.ftex);;"
+		"All files(*)"));
+	std::string f = std::string((const char *) fileName.toLocal8Bit());
+	if(f.size() != 0)
+	{
+		if(p_mesh)
+		{
+			PolyTexCoordArray& face_tex_coord_vec = p_mesh->m_Kernel.GetFaceInfo().GetTexCoord();
+			int face_num = p_mesh->m_Kernel.GetModelInfo().GetFaceNum();
+			face_tex_coord_vec.clear();
+			face_tex_coord_vec.resize(face_num);
+
+			ifstream fin(f.c_str());
+			if(fin.fail()){
+				std::cout << "can't load face texure file." << std::endl;
+				return;
+			}
+
+			for(int k=0; k<face_num; ++k)
+			{
+				TexCoordArray& tex_coord = face_tex_coord_vec[k];
+				tex_coord.clear(); tex_coord.resize(3);
+				for(size_t i=0; i<3; ++i)
+				{
+					fin >> tex_coord[i][0] >> tex_coord[i][1];
+				}
+			}
+
+
+			updateGL();
+
+			std::string file_path, file_title, file_ext;
+			Utility util;
+			util.ResolveFileName(f, file_path, file_title, file_ext);
+
+			ofstream fout("open_file_path.txt");
+			if(!fout.fail()){
+				fout << file_path << std::endl;
+			}
+			fout.close();
+
+		}else
+			return ;
+	}else{
+		return ;
+	}
+}
+
+void QGLViewer::SaveFaceTexCoord()
+{
+	if(p_mesh == NULL) return;
+
+	std::string prev_file_path;
+	ifstream fin ("open_file_path.txt");
+	if(!fin.fail()){
+		fin >> prev_file_path; 
+	}
+	fin.close();
+	std::string mesh_file_name = p_mesh->GetModelFileName();
+
+	QString fileName = QFileDialog::getSaveFileName(
+		this,
+		tr("Save Face Texture Coord File"),
+		tr(prev_file_path.c_str()),
+		tr("Face Texture file(*.ftex);;"
+		"All files(*)"));
+	std::string f = std::string((const char *) fileName.toLocal8Bit());
+
+	std::string file_path, file_title, file_ext;
+	Utility util;
+	util.ResolveFileName(f, file_path, file_title, file_ext);
+
+	ofstream file("open_file_path.txt");
+	if(!file.fail()){
+		file << file_path << std::endl;
+	}
+	file.close();
+
+
+	std::string face_tex_file = file_path + file_title + ".ftex";
+	ofstream fout (face_tex_file.c_str());
+	if(fout.fail()){
+		std::cerr << "Can't save face tex coord" << std::endl;
+		return;
+	}
+
+	const PolyTexCoordArray& face_tex_coord = p_mesh->m_Kernel.GetFaceInfo().GetTexCoord();
+
+	for(size_t k=0; k<face_tex_coord.size(); ++k)
+	{
+		const TexCoordArray& tex_coord_vec = face_tex_coord[k];
+		for(size_t i=0; i<tex_coord_vec.size(); ++i)
+		{
+			fout << tex_coord_vec[i][0] <<" " << tex_coord_vec[i][1] <<" ";
+		}
+		fout << std::endl;
+	}
+
+	fout.close();
+
+}
+
 void QGLViewer::SetParamDrawerSelectVertMode()
 {
 	if(p_param_drawer == NULL) return;
@@ -264,6 +467,13 @@ void QGLViewer::SetParamDrawerCorrespondMode()
 {
 	if(p_param_drawer == NULL) return;
 	p_param_drawer->SetDrawMode(PARAM::ParamDrawer::DRAWSELECTION);
+	updateGL();
+}
+
+void QGLViewer::SetParamDrawerSelectPatchMode()
+{
+	if(p_param_drawer == NULL) return;
+	p_UIHander->GetMouseMode() = MOUSE_MODE_SELECT_PATCH;
 	updateGL();
 }
 //----------------------------------------------------------------------------

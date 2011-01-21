@@ -32,6 +32,7 @@
 #include "MeshModelIO.h"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 /* ================== Mesh Model I/O Functions ================== */
 
@@ -434,15 +435,7 @@ bool MeshModelIO::SaveOffFile(const std::string& filename)
 }
 bool MeshModelIO::OpenObjFile(const std::string& filename)
 {
-	int nVertex = 0, nFace = 0;
-	float coordPos0;
-    float coordPos1;
-    float coordPos2;
-	int fv0;
-    int fv1;
-    int fv2;
-	char format[10];
-
+	int nVertex = 0, nFace = 0, nVertTex = 0,nVertNorm = 0;
 
     std::string str;
     std::ifstream ifs(filename.c_str());
@@ -468,6 +461,16 @@ bool MeshModelIO::OpenObjFile(const std::string& filename)
 			++nFace;
 			continue;
 		}
+		if(str[0] == 'v' && str[1] == 't')
+		{
+			++nVertTex;
+			continue;
+		}
+		if(str[0] == 'v' && str[1] == 'n')
+		{
+			++nVertNorm;
+			continue;
+		}
 	}
 
 	ifs.clear();
@@ -478,92 +481,103 @@ bool MeshModelIO::OpenObjFile(const std::string& filename)
 	
     // Load vertex information
     VertexInfo& vInfo = kernel->GetVertexInfo();
-    CoordArray& vCoord = vInfo.GetCoord();
-	
+    CoordArray& vCoord = vInfo.GetCoord();   	
     vCoord.resize(nVertex);
 
 	// Load Texture information
-	TexCoordArray&  tCoord = vInfo.GetTexCoord();
-	tCoord.resize(nVertex);
+	TexCoordArray&  vTex = vInfo.GetTexCoord();
+	vTex.resize(nVertTex);
 
+	NormalArray& vNorm = vInfo.GetNormal();
+	vNorm.resize(nVertNorm);
 
 	// Load face information
     FaceInfo& fInfo = kernel->GetFaceInfo();
     PolyIndexArray& fIndex = fInfo.GetIndex();
-
     fIndex.resize(nFace);
 
+	PolyTexCoordArray& face_tcoord = fInfo.GetTexCoord();
+	face_tcoord.resize(nFace);
 
-	size_t vn = 0, fn = 0, vt=0;
+	PolyIndexArray& face_tex_index = fInfo.GetTexIndex();
+	face_tex_index.resize(nFace);
 
-	while(!ifs.eof()) {
-		getline(ifs, str, '\n');
-		if(ifs.fail()) break;
-		if(str.empty()) continue;
-		
-		
-		if(str[0] == '#')	continue;
-		if(str[0] == 'g')	continue;
-		if(str[0] == 'o')	continue;
+	NormalArray& face_norm = fInfo.GetNormal();
+	face_norm.resize(nFace);
 
-		// read the vertex information here.
-		if(str[0] == 'v' && str[1] == ' ') 
-		{
-			sscanf(str.c_str(), "%s %f %f %f", format, &coordPos0, &coordPos1, &coordPos2);
+	size_t vn = 0, fn = 0, vt_num = 0, vn_num = 0;
 
-			Coord& v = vCoord[vn];
-			v[0] = coordPos0;
-			v[1] = coordPos1;
-            v[2] = coordPos2;
+	std::string s, ss, line;
+	std::stringstream stream;
 
-			++vn;
-			continue;
+	int len, mark, c, v, n, t;
+
+	while(std::getline(ifs,line)){
+		switch(line[0]){
+			case '#':	break;
+			case 'v':	/* v, vn , vt*/
+				stream << line;
+				stream >> s;
+				if(s.length() == 1)	{ 
+					stream >> vCoord[vn][0] >> vCoord[vn][1] >> vCoord[vn][2];
+					stream.str(""); stream.clear(); 
+					++vn;
+				}else if(s[1] == 'n') {
+					stream >> vNorm[vt_num][0] >> vNorm[vt_num][1] >> vNorm[vt_num][2];
+					stream.str(""); stream.clear();
+					++vt_num;
+				}else if(s[1] == 't') {
+					stream >> vTex[vn_num][0] >> vTex[vn_num][1];
+					stream.str(""); stream.clear();
+					++vn_num;
+				}
+				break;
+
+			case 'f':	/* f */
+				len=(int)line.length();
+				while(line[len-1]=='\\')
+				{
+					getline(ifs,ss);
+					line[len-1]=' '; line +=ss;
+					len=(int)line.length();
+				}	
+				v=0, t=0, n=0;
+				for(int i=1;i<len;i++)
+				{
+					c=line[i]-'0';
+					if(line[i-1]==' '&&isdigit(line[i])){ // v begin
+						mark=1;	v= c;
+					}else if(isdigit(line[i-1]) && isdigit(line[i])){ // di form
+						if(mark==1) v = v*10 + c; 
+						else if(mark==2) t = t*10 + c; 
+						else if(mark==3) n = n*10 + c; 
+					}else if(line[i-1]=='/' && isdigit(line[i])){
+						if(mark==1){ // t begin;
+							mark = 2;	t = c; 
+						}else if(mark==2){ // n begin
+							mark = 3;	n = c; 
+						}
+					}else if(line[i-1]=='/' && line[i]=='/'){
+						mark=2;
+					}
+					if((line[i]==' '&&isdigit(line[i-1]))|| i == (int) line.length()-1){
+						fIndex[fn].push_back(v-1);
+						if(t >=1){
+							face_tex_index[fn].push_back(t-1);
+							const TexCoord& tex_coord = vTex[t-1];
+							face_tcoord[fn].push_back(tex_coord);
+						}
+						v = t = n  = 0;
+					}
+				}
+				++fn;
+				break;
+
+			default:	break;
 		}
-
-		if(str[0] == 'v' && str[1] == 't')
-		{
-			sscanf(str.c_str(), "%s %f %f", format, &coordPos0, &coordPos1);
-
-			TexCoord& v = tCoord[vt];
-			v[0] = coordPos0;
-			v[1] = coordPos1;
-			
-			++vt;
-			continue;
-		}
-
-		// read the face information here.
-		if(str[0] == 'f' && str[1] == ' ') 
-		{
-            std::vector<int> word_pos(1, 0);
-            std::string delimit = " \t";
-			for(size_t i = 0; i < str.length(); ++i) {
-				if(delimit.find(str[i]) == std::string::npos)
-					continue;
-				if(i+1 < str.length() && delimit.find(str[i+1]) == std::string::npos)
-					word_pos.push_back((int) i+1);
-			}
-			if(word_pos.size() < 4) {
-                std::cout << "bad polygon";
-				return false;
-			}
-			sscanf(str.c_str()+word_pos[1], "%d", &fv0);
-			sscanf(str.c_str()+word_pos[2], "%d", &fv1);
-			sscanf(str.c_str()+word_pos[3], "%d", &fv2);
-						
-			IntArray& f = fIndex[fn];
-			f.resize(3);
-			
-			f[0] = fv0 - 1;
-			f[1] = fv1 - 1;
-            f[2] = fv2 - 1;
-
-			++fn;
-
-			continue;
-		}
-
 	}
+
+	
 
 	ifs.close();
 
@@ -581,30 +595,53 @@ bool MeshModelIO::SaveObjFile(const std::string& filename)
 	
     size_t nVertex, nFace;
     VertexInfo& vInfo = kernel->GetVertexInfo();
-    CoordArray& arrCoord = vInfo.GetCoord();
+	CoordArray& arrCoord = vInfo.GetCoord();
     nVertex = arrCoord.size();
 	
     FaceInfo& fInfo = kernel->GetFaceInfo();
     PolyIndexArray& arrIndex = fInfo.GetIndex();
+	PolyIndexArray& texIndex = fInfo.GetTexIndex();
     nFace = arrIndex.size();
 	
 	// Store vertex information
     size_t i, j;
     for(i = 0; i < nVertex; ++ i)
     {
-        Coord& v = arrCoord[i];
+        const Coord& v = arrCoord[i];
 		file << "v ";
         for(j = 0; j < 3; ++ j)
             file << v[j] << ((j<2) ? ' ' : '\n');
     }
-	
+
+	// Store vertex texture info
+	TexCoordArray& vTexCoordArray = vInfo.GetTexCoord();
+	for(size_t i=0; i<vTexCoordArray.size(); ++i)
+	{
+		const TexCoord& t = vTexCoordArray[i];
+		file << "vt ";
+		file << t[0] << ' ' << t[1] << std::endl;
+	}		
+
+	bool with_tex = (texIndex.size() !=0 );
     // Store face information
     for(i = 0; i < nFace; ++ i)
     {
-        IntArray& f = arrIndex[i];
+        const IntArray& f = arrIndex[i];		
         file << "f ";
-        for(j = 0; j < 3; ++ j)
-            file << f[j] + 1 << ((j<2) ? ' ' : '\n');
+
+		if(!with_tex){
+			for(j = 0; j < 3; ++ j)
+			{
+				file << f[j] + 1 << ((j<2) ? ' ' : '\n');
+			}
+		}else{
+			const IndexArray& t = texIndex[i];
+			for(j = 0; j < 3; ++j)
+			{
+				file << f[j] + 1 <<'/'<< t[j] + 1 << ((j<2) ? ' ' : '\n');
+			}
+		}
+
     }
 
     file.close();

@@ -278,7 +278,7 @@ void GLProjection::ClearData()
     fov = 40.0f;
     aspect = 1.0f;
 
-    vv_near = 0.0001;
+    vv_near = 0.5;
     vv_far = 500.0;
 
     type = PROJECTION_TYPE_ORTHOGONAL;
@@ -332,7 +332,7 @@ void GLProjection::SetProjection(int width, int height)
     }
     
     double z_dist = (object_radius*object_ratio)/tan(fov/2.0);
-    gluLookAt(object_center[0], object_center[1], object_center[2]+z_dist, object_center[0], object_center[1], object_center[2], 0, 1, 0);
+  //  gluLookAt(object_center[0], object_center[1], object_center[2]+z_dist, object_center[0], object_center[1], object_center[2], 0, 1, 0);
 
     glViewport(0, 0, width, height);
 	glMatrixMode(GL_MODELVIEW);
@@ -376,9 +376,9 @@ void COpenGL::ClearData()
 	m_BkColor[3] = 1.0;
 
 	
-    m_BkColor[0] = 0.00;
-    m_BkColor[1] = 0.00;
-    m_BkColor[2] = 0.25;
+    m_BkColor[0] = 1.00;
+    m_BkColor[1] = 1.00;
+    m_BkColor[2] = 1.00; //0.25
     m_BkColor[3] = 1.0;
 	
 
@@ -568,6 +568,26 @@ void COpenGL::GetWorldCoord(int x, int y, Coord& pos)
 	glReadPixels((GLint) winX, (GLint) winY, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
 	int  ret_val = gluUnProject(winX, winY, winZ, modelview, projection, viewport, &(pos[0]), &(pos[1]), &(pos[2]));
 	assert(ret_val == GL_TRUE);
+
+// 	std::cout<<"\nGetWorldCoord " << x <<" " <<y << std::endl;
+// 
+// 	std::cout << "Viewport : \n" << viewport[0] <<" " << viewport[1] <<" " << viewport[2] << " " << viewport[3] << std::endl;
+// 	std::cout << "Modelview: \n" ;
+// 	for(size_t k=0; k<4; ++k)
+// 	{
+// 		for(size_t i=0; i<4; ++i) std::cout << modelview[k*4+i] << " " ;
+// 		std::cout << std::endl;
+// 
+// 	}
+// 	std::cout << "Projection: \n";
+// 	for(size_t k=0; k<4; ++k)
+// 	{
+// 		for(size_t i=0; i<4; ++i) std::cout << projection[k*4+i] << " ";
+// 		std::cout << std::endl;
+// 	}
+// 	std::cout << winX <<" " << winY << " " << winZ << std::endl;
+// 	std::cout << "\n GetWorldCoord end \n";
+
 
 	m_GLContext->doneCurrent();
 }

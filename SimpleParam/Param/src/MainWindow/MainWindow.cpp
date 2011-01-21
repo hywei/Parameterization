@@ -66,48 +66,59 @@ void MainWindow::mouseSpin()
 {
 	glViewer_1->mouseSpin();
 	glViewer_1->setCursor(Qt::PointingHandCursor);
+
+	glViewer_2->mouseSpin();
+	glViewer_2->setCursor(Qt::PointingHandCursor);
 }
 
 void MainWindow::mouseMove()
 {
 	glViewer_1->mouseMove();
 	glViewer_1->setCursor(Qt::ArrowCursor);
+
+	glViewer_2->mouseMove();
+	glViewer_2->setCursor(Qt::ArrowCursor);
 }
 
 void MainWindow::mouseZoom()
 {
 	glViewer_1->mouseZoom();
 	glViewer_1->setCursor(Qt::SizeAllCursor);
+
+	glViewer_2->mouseZoom();
+	glViewer_2->setCursor(Qt::SizeAllCursor);
 }
 
 void MainWindow::findCorrespondingOnA()
 {
-	int vid = glViewer_2->p_param_drawer->GetSelectedVertID();
-	if(vid == -1) return;
-	int chart_id = glViewer_2->p_param->GetVertexChartID(vid);
-	PARAM::ParamCoord param_coord = glViewer_2->p_param->GetVertexParamCoord(vid);
-	PARAM::ChartParamCoord chart_param_coord(param_coord, chart_id);
-	PARAM::SurfaceCoord surface_coord;
-	glViewer_1->p_param->FindCorrespondingOnSurface(chart_param_coord, surface_coord);  
-	glViewer_1->p_param_drawer->SetSelectedVertCoord(surface_coord);
-	glViewer_1->updateGL();
+// 	int vid = glViewer_2->p_param_drawer->GetSelectedVertID();
+// 	if(vid == -1) return;
+// 	int chart_id = glViewer_2->p_param->GetVertexChartID(vid);
+// 	PARAM::ParamCoord param_coord = glViewer_2->p_param->GetVertexParamCoord(vid);
+// 	PARAM::ChartParamCoord chart_param_coord(param_coord, chart_id);
+// 	PARAM::SurfaceCoord surface_coord;
+// 	glViewer_1->p_param->FindCorrespondingOnSurface(chart_param_coord, surface_coord);  
+// 	glViewer_1->p_param_drawer->SetSelectedVertCoord(surface_coord);
+// 	glViewer_1->updateGL();
+	m_cross_param_control->FindCorrespondingOnA();
 }
 
 void MainWindow::findCorrespondingOnB()
 {
-	int vid = glViewer_1->p_param_drawer->GetSelectedVertID();
-	if(vid == -1) return;
-	int chart_id = glViewer_1->p_param->GetVertexChartID(vid);
-	PARAM::ParamCoord param_coord = glViewer_1->p_param->GetVertexParamCoord(vid);
-    // std::cout << "Surface A --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
-	PARAM::ChartParamCoord chart_param_coord(param_coord, chart_id);
-	PARAM::SurfaceCoord surface_coord;
-	glViewer_2->p_param->FindCorrespondingOnSurface(chart_param_coord, surface_coord);  
-	glViewer_2->p_param_drawer->SetSelectedVertCoord(surface_coord);
-
-    // int vid_2 = glViewer_2->p_param_drawer->GetSelectedVertID();
-    // std::cout << "Surface B --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" "<<param_coord.t_coord << std::endl;
-	glViewer_2->updateGL();
+// 	int vid = glViewer_1->p_param_drawer->GetSelectedVertID();
+// 	if(vid == -1) return;
+// 	int chart_id = glViewer_1->p_param->GetVertexChartID(vid);
+// 	PARAM::ParamCoord param_coord = glViewer_1->p_param->GetVertexParamCoord(vid);
+//     std::cout << "Surface A --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" " << param_coord.t_coord << std::endl; 
+// 	PARAM::ChartParamCoord chart_param_coord(param_coord, chart_id);
+// 	PARAM::SurfaceCoord surface_coord;
+// 	glViewer_2->p_param->FindCorrespondingOnSurface(chart_param_coord, surface_coord);  
+// 	glViewer_2->p_param_drawer->SetSelectedVertCoord(surface_coord);
+// 
+//     int vid_2 = glViewer_2->p_param_drawer->GetSelectedVertID();
+//     std::cout << "Surface B --- chart id : " << chart_id << ", param_coord " << param_coord.s_coord <<" "<<param_coord.t_coord << std::endl;
+// 	glViewer_2->updateGL();
+	m_cross_param_control->FindCorrespondingOnB();
 }
 
 void MainWindow::createActions()
@@ -215,12 +226,16 @@ void MainWindow::openModel()
 void MainWindow::openTextureImage()
 {
 	glViewer_1->loadTextureImage();
+	glViewer_2->loadTextureImage();
 }
 void MainWindow::openQuadFile()
 {
 	glViewer_1->loadQuadFile();
 }
-void MainWindow::saveModel(){}
+void MainWindow::saveModel()
+{
+	glViewer_2->saveMeshModel();
+}
 void MainWindow::saveAsBmp(){}
 void MainWindow::recentFiles(){}
 void MainWindow::toobBar(){}

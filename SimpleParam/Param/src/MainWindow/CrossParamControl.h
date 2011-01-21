@@ -26,13 +26,24 @@ private:
 
 	void CreateMainLayout();
 
+public:
+	void FindCorrespondingOnA();
+	void FindCorrespondingOnB();
+
 private slots:
 	void ComputeCrossParam();
 	void OptimizeCrossParam();
 
+	void LoadCorrespondingFile();
+
 	void SetPatchConnerDisplay(bool );
 	void SetPatchEdgeDisplay(bool );
 	void SetPatchFaceDisplay(bool );
+	void SetOutRangeVertDisplay(bool );
+	void SetSelectedPatchDisplay(bool);
+	void SetFlippedTriangleDisplay(bool);
+	void SetCorrespondingDisplay(bool);
+	void SetUnCorrespondingDisplay(bool);
 
 private:
 	QGLViewer* m_gl_viewer_1;

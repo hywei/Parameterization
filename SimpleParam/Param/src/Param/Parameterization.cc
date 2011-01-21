@@ -1,6 +1,8 @@
 #include "Parameterization.h"
+#include "Barycentric.h"
 #include "../ModelMesh/MeshModel.h"
 #include "../Numerical/MeshSparseMatrix.h"
+#include "../Numerical/Heap.h"
 #include "../Common/HSVColor.h"
 #include <limits>
 #include <set>
@@ -229,7 +231,16 @@ namespace PARAM
 		return dis;
 	}
 
-	void FaceValue2VtxColor(boost::shared_ptr<MeshModel> p_mesh, const std::vector<double>& face_value)
+	double DistanceToTriangle( const Coord2D &p, const Coord2D &a, const Coord2D &b, const Coord2D &c )
+	{
+		std::vector<ParamCoord> tri_node_cv(3);
+		tri_node_cv[0] = ParamCoord(a[0], a[1]); tri_node_cv[1] = ParamCoord(b[0], b[1]); tri_node_cv[2] = ParamCoord(c[0], c[1]);
+		Barycentrc bary = ComputeVertexBarycentric(tri_node_cv, ParamCoord(p[0], p[1]));
+		if(IsValidBarycentic(bary)) return 0.0;
+		return ComputeErrorOutValidBarycentric(bary);
+	}
+
+	void FaceValue2VtxColor(boost::shared_ptr<MeshModel> p_mesh, std::vector<double>& face_value)
 	{
 		ColorArray& face_color_array = p_mesh->m_Kernel.GetFaceInfo().GetColor();
 		face_color_array.clear();
@@ -241,12 +252,17 @@ namespace PARAM
 
 		size_t face_num = p_mesh->m_Kernel.GetFaceInfo().GetIndex().size();
 
-		double min = 1e20, max = -1e20;
-		for(size_t i = 0; i < face_num; ++i)
+		for(size_t k=0; k<face_value.size(); ++k)
 		{
-			if(face_value[i] < min) min = face_value[i];
-			if(face_value[i] > max) max = face_value[i];
+			if(face_value[k] > 100) face_value[k] = 100;
 		}
+
+		double min = 1e20, max = -1e20;
+		
+		min = (*min_element(face_value.begin(), face_value.end()));
+		max = (*max_element(face_value.begin(), face_value.end()));
+
+		std::cout << min << " " << max << std::endl;
 
 		double range = (max - min) * 1.1;
 
@@ -328,7 +344,7 @@ namespace PARAM
 	*  @param path The path we find
 	*  @return return 0 if success else return Error_Code
 	/************************************************************************/
-	int FindShortestPathInRegion(boost::shared_ptr<MeshModel> p_mesh, int start_vid, int end_vid, 
+	bool FindShortestPathInRegion(boost::shared_ptr<MeshModel> p_mesh, int start_vid, int end_vid, 
 		const std::set< std::pair<int, int> >& region_edge_set, std::vector<int>& path)
 	{
 		assert(p_mesh);
@@ -338,60 +354,98 @@ namespace PARAM
 		}
 
 		PolyIndexArray& adjVtxArray = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
-		CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+		CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();		
+		
+		//FlagArray& vFlag = kernel->GetVertexInfo().GetFlag();
 
-		const std::set<std::pair<int, int> >& edge_set = region_edge_set;
+		int nVertex = (int)adjVtxArray.size();
+		int j, n;
+		DoubleArray m_VtxDist;
+		IndexArray  m_VtxParent;
+		m_VtxDist.resize(nVertex);
+		m_VtxParent.resize(nVertex);
+		fill(m_VtxDist.begin(), m_VtxDist.end(), INFINITE_DISTANCE);
+		fill(m_VtxParent.begin(), m_VtxParent.end(), -1);
 
-		std::map<int,int> preVtx; //
-		preVtx[end_vid] = -1;
-		std::map<int,double> dist; //
-		dist[end_vid] = 0.0;
-		std::set<int> vtxInQueue; // vertexes in queue
-		queue<int> q;
-		q.push(end_vid);
-		vtxInQueue.insert(end_vid);
+		CHeap heap;
 
-		double curLen;
-		map<int,double>::iterator im;
-		while(!q.empty())
+		m_VtxDist[end_vid] = 0.0;
+		Node* pNode = new Node;
+		pNode->v = 0.0;
+		pNode->type = end_vid;
+		heap.insert(pNode);
+
+		bool flag = false;
+		// Gather all neighborhood vertices
+		while(!heap.heapEmpty())
 		{
-			int u = q.front(); q.pop();
-			vtxInQueue.erase( vtxInQueue.find(u));
-			if(u==(int)start_vid) break;
-
-			double len = dist[u];
-			IndexArray& adjVtxes = adjVtxArray[u];
-			int nv = (int)adjVtxes.size();
-			for(int k=0; k<nv; ++k)
+			Node* pNode = heap.Remove();
+			VertexID vID = pNode->type;
+			double v_dist = m_VtxDist[vID];
+			Coord v = vCoord[vID];
+			IndexArray& adjVertices = adjVtxArray[vID];
+			n = (int) adjVertices.size();
+			for(j = 0; j < n; ++ j)
 			{
-				int vid = adjVtxes[k];
-				std::pair<int, int> e = MakeEdge(u, vid);
-				if(edge_set.find(e) == edge_set.end()) continue;
-
-				im = dist.find(vid);
-				if(im == dist.end()) curLen=INFINITE_DISTANCE;
-				else curLen = im->second;
-				double d = (vCoord[vid] -vCoord[u]).abs();
-				if( len + d < curLen){
-					dist[vid] = len+d;
-					preVtx[vid] = u;
-					if(vtxInQueue.find(vid) == vtxInQueue.end()){
-						vtxInQueue.insert(vid);
-						q.push(vid);
+				VertexID vtxID = adjVertices[j];
+				std::pair<int, int> e = MakeEdge(vID, vtxID);				
+				double vtx_dist;
+				if(region_edge_set.find( make_pair(vID, vtxID)) == region_edge_set.end()
+					&& region_edge_set.find(make_pair(vtxID, vID)) == region_edge_set.end()){
+					continue;
+				}else{
+					vtx_dist = m_VtxDist[vtxID];
+				}
+				Coord vtx = vCoord[vtxID];
+				double edge_length = (vtx-v).abs();
+				if(v_dist+edge_length < vtx_dist)		// Update
+				{
+					m_VtxDist[vtxID] = v_dist+edge_length;
+					m_VtxParent[vtxID] = vID;
+					int index = heap.heapFind(vtxID);
+					if(index)	// Already in heap
+					{
+						heap.a[index]->v = m_VtxDist[vtxID];
+						heap.upheap(index);
+					}
+					else
+					{
+						Node* pNewNode = new Node;
+						pNewNode->v = m_VtxDist[vtxID];
+						pNewNode->type = vtxID;
+						heap.insert(pNewNode);
 					}
 				}
 			}
+			delete pNode;
+			if(vID == start_vid){
+				flag = true;
+				break;
+			}
 		}
 
-		int curVID = start_vid, preVID = preVtx[curVID];
-		while(preVID!= -1){
-			path.push_back(curVID);
-			curVID = preVID;
-			preVID = preVtx[curVID];
+		if(flag == false){
+			path.clear();
+			return false;
+		}
+
+		while(!heap.heapEmpty())
+		{
+			Node* pNode = heap.Remove();
+			delete pNode;
+		}
+
+		// Extract Vertex Path
+		path.clear();
+		int curr_vID = start_vid;
+		while(m_VtxParent[curr_vID] != -1)
+		{
+			path.push_back(curr_vID);
+			curr_vID = m_VtxParent[curr_vID];
 		}
 		path.push_back(end_vid);
 
-		return 0;
+		return true;
 	}
 
 	HalfEdge::HalfEdge(){}

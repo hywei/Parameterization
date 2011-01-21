@@ -21,12 +21,13 @@ namespace PARAM
 		const std::vector<double>& GetFaceHarmonicDistortion() const { return m_face_harmonic_distortion; }
 		const std::vector<double>& GetFaceIsometricDistortion() const{ return m_face_isometric_distortion; }
 
-	private:
-		double ComputeHarmonicDistortion(const zjucad::matrix::matrix<double>& jacobi_mat) const;
-		double ComputeIsometricDistortion(const zjucad::matrix::matrix<double>& jacobi_mat) const;
-
 		//! compute the jacobi matrix from surface to parameter domain
 		zjucad::matrix::matrix<double> ComputeParamJacobiMatrix(int fid) const;
+
+
+	private:
+		double ComputeHarmonicDistortion(const zjucad::matrix::matrix<double>& jacobi_mat) const;
+		double ComputeIsometricDistortion(const zjucad::matrix::matrix<double>& jacobi_mat) const;		
 
 	private:
 		const Parameter& m_parameter;

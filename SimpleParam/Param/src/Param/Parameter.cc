@@ -9,6 +9,8 @@
 #include "../Numerical/MeshSparseMatrix.h"
 #include <hj_3rd/zjucad/matrix/matrix.h>
 #include <hj_3rd/zjucad/matrix/io.h>
+#include <hj_3rd/hjlib/math/blas_lapack.h>
+#include <hj_3rd/zjucad/matrix/lapack.h>
 
 #include <iostream>
 #include <queue>
@@ -37,7 +39,8 @@ namespace PARAM
 	void Parameter::OptimizeAmbiguityPatch()
 	{
 		if(!p_chart_creator) return;
-		p_chart_creator->OptimizeAmbiguityPatchShape();
+		//p_chart_creator->OptimizeAmbiguityPatchShape();
+		p_chart_creator->OptimizePatchShape();
 	}
 
 	bool Parameter::ComputeParamCoord()
@@ -48,39 +51,231 @@ namespace PARAM
 			std::cout<<"Error : Please load quad file first!\n";
 			return false;
 		}		
-        
+
 		SetInitFaceChartLayout();
 		SetInitVertChartLayout();        
 
+
 		CMeshSparseMatrix lap_mat;
-		//SetLapMatrixCoef(p_mesh, lap_mat);
-		SetLapMatrixCoefWithMeanValueCoord(p_mesh, lap_mat);
-		
-		int loop_num = 1;
+		SetLapMatrixCoef(p_mesh, lap_mat);		
+
+		CMeshSparseMatrix lap_mat_with_mean_value;
+		SetLapMatrixCoefWithMeanValueCoord(p_mesh, lap_mat_with_mean_value);
+
+		size_t face_num = (size_t)p_mesh->m_Kernel.GetModelInfo().GetFaceNum();
+		m_stiffen_weight.clear();
+		m_stiffen_weight.resize(face_num, 1.0);
+
+		m_flippd_face.clear();
+		m_flippd_face.resize(face_num, false);
+
+		int loop_num = 6;
 		for(int k=0; k<loop_num; ++k)
-		{
-			SolveParameter(lap_mat);
-			if(k < loop_num-1)
+		{						
+			CMeshSparseMatrix lap_mat_with_stiffen;
+//			SetLapMatrixWithStiffeningWeight(lap_mat_with_stiffen);
+
+			CMeshSparseMatrix meanvalue_lap_mat_with_stiffen;
+//			SetMeanValueLapMatrixWithStiffeningWeight(meanvalue_lap_mat_with_stiffen);
+//			SolveParameter(meanvalue_lap_mat_with_stiffen);
+//			SolveParameter(lap_mat_with_stiffen);
+//			SolveParameter(lap_mat_with_mean_value);
+			SolveParameter(lap_mat_with_mean_value);
+			if(k < loop_num)
 			{
                 GetOutRangeVertices(m_out_range_vert_array);
 				AdjustPatchBoundary();
+				ConnerRelocating();
+// 				LocalStiffening();		
+// 				CheckFlipedTriangle();
+// 				if(m_fliped_face_array.size() == 0) break;
 			}
+			
 		}	   		
 
+		GetOutRangeVertices(m_out_range_vert_array);
 		AdjustPatchBoundary();
+//		VertexRelalaxation();
         GetOutRangeVertices(m_out_range_vert_array);
         
 		ResetFaceChartLayout();
-		SetMeshFaceTextureCoord();
-
-		//GetOutRangeVertices(m_out_range_vert_array);
+//		SetMeshFaceTextureCoord();
+		
 		SetChartVerticesArray();
 
-		ComputeDistortion();
+ 		ComputeDistortion();
 
-		CheckFlipedTriangle();
+// 
+ 		CheckFlipedTriangle();
 
 		return true;
+	}
+
+	void Parameter::FixAdjustedVertex(bool with_conner /* = false */)
+	{
+		int vert_num = p_mesh->m_Kernel.GetModelInfo().GetVertexNum();
+		int fix_num=0;
+		int total_fix_num = 0;
+		do{
+			fix_num = 0;
+			for(int vid=0; vid < vert_num; ++vid)
+			{
+				if(!with_conner && IsConnerVertex(vid)) continue;
+				if(FixAdjustedVertex(vid)) fix_num++; 
+			}
+			total_fix_num += fix_num;
+		}while(fix_num !=0);
+
+		std::cout << "Fix " << total_fix_num << " adjusted vertices" <<std::endl;
+	}
+
+	bool Parameter::FixAdjustedVertex(int vid)
+	{
+		PolyIndexArray& vtxAdjVtxArray = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
+		IntArray& vAdjVtx = vtxAdjVtxArray[vid];
+		int chart_id = m_vert_chart_array[vid];
+
+		// check this vertex's neighbor vertex.
+		std::set<int> vtxNeighChartSet;
+		std::vector<int> vtxNeighChartVector;
+
+		for (size_t j = 0 ; j < vAdjVtx.size(); j++)
+		{
+			int adjVtxGroup = m_vert_chart_array[vAdjVtx[j]];
+			vtxNeighChartSet.insert(adjVtxGroup);
+			vtxNeighChartVector.push_back(adjVtxGroup);
+		}
+
+		// if only 1 neighbor chart, this vertex is island vertex, or insider vertex.
+		if (vtxNeighChartSet.size() == 1)
+		{
+			int adj_chart_id = vtxNeighChartVector[0];
+
+			// if this vertex is island vertex.
+			if (adj_chart_id != chart_id)
+			{
+				ParamCoord old_param_coord = m_vert_param_coord_array[vid];
+				TransParamCoordBetweenCharts(chart_id, adj_chart_id, vid, old_param_coord, m_vert_param_coord_array[vid]);
+				m_vert_chart_array[vid] = adj_chart_id;
+				return true;
+			}
+		}else{
+			// if all neighbor chart are others, this vertex island vertex
+			// make it to one of them.
+			if (vtxNeighChartSet.find(chart_id) == vtxNeighChartSet.end())
+			{
+				int max_appears_chart_id(-1), max_num(-1);
+				for(size_t i=0; i<vtxNeighChartVector.size(); ++i)
+				{
+					int cid = vtxNeighChartVector[i];
+					int appear_num = count(vtxNeighChartVector.begin(), vtxNeighChartVector.end(), cid);
+					if(cid > max_num){ max_num = appear_num; max_appears_chart_id = cid;}
+				}
+
+				ParamCoord old_param_coord = m_vert_param_coord_array[vid];
+				TransParamCoordBetweenCharts(chart_id, max_appears_chart_id, vid,
+					old_param_coord, m_vert_param_coord_array[vid]);
+				m_vert_chart_array[vid] = max_appears_chart_id;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	void Parameter::ConnerRelocating()
+	{
+		std::vector<PatchConner>& conner_vec = p_chart_creator->GetPatchConnerArray();
+
+		for(size_t i=0; i<conner_vec.size(); ++i)
+		{
+			PatchConner& conner = conner_vec[i];
+			
+			int conner_vid = conner.m_mesh_index;
+ 
+			ParamCoord new_conner_coord; 
+			ComputeConnerVertexNewParamCoord(conner_vid, new_conner_coord);
+
+			std::vector<int> nb_vec;
+			p_mesh->m_BasicOp.GetNeighborhoodVertex(conner_vid, 40, false, nb_vec);
+
+			std::vector< std::pair<int, double> > node_candidate_vec;
+			for (size_t j = 0; j < nb_vec.size(); j++)
+			{
+				int vid = nb_vec[j];
+				Coord2D vert_st(m_vert_param_coord_array[vid].s_coord, m_vert_param_coord_array[vid].t_coord);
+				if(vid == conner_vid){
+					vert_st = Coord2D(new_conner_coord.s_coord, new_conner_coord.t_coord);
+				}
+				ParamCoord conner_pc;
+				if(GetConnerParamCoord(m_vert_chart_array[vid], i, conner_pc))
+				{
+					Coord2D conner_st(conner_pc.s_coord, conner_pc.t_coord);
+					double dis = (conner_st - vert_st).abs();
+					node_candidate_vec.push_back(std::make_pair(vid, dis));
+				}
+			}
+
+			int best_candidate_node(-1);
+			double min_dist = std::numeric_limits<double>::max();
+			for(size_t i=0; i<node_candidate_vec.size(); ++i)
+			{
+				if(min_dist > node_candidate_vec[i].second)
+				{
+					min_dist = node_candidate_vec[i].second;
+					best_candidate_node = node_candidate_vec[i].first;
+				}
+			}
+			std::cout <<conner.m_mesh_index << " " << best_candidate_node << std::endl;
+			conner.m_mesh_index = best_candidate_node;
+
+		}
+
+	}
+
+	void Parameter::ComputeConnerVertexNewParamCoord(int conner_vid, ParamCoord& new_pc) const
+	{
+		const PolyIndexArray& vAdjVertices = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
+		const IndexArray& adj_vertics = vAdjVertices[conner_vid];
+
+		std::vector<ParamCoord> adj_pc_vec(adj_vertics.size());
+		int chart_id = m_vert_chart_array[conner_vid];
+
+		new_pc.s_coord = 0.0; new_pc.t_coord = 0.0;
+		for(size_t k=0; k<adj_vertics.size(); ++k)
+		{
+			int vid = adj_vertics[k];
+			int cur_chart_id = m_vert_chart_array[vid];
+			adj_pc_vec[k] = m_vert_param_coord_array[vid];
+			if(cur_chart_id != chart_id)
+			{
+				TransParamCoordBetweenCharts(cur_chart_id, chart_id, vid, 
+					m_vert_param_coord_array[vid], adj_pc_vec[k]);
+			}
+			new_pc.s_coord += adj_pc_vec[k].s_coord;
+			new_pc.t_coord += adj_pc_vec[k].t_coord;
+		}
+		new_pc.s_coord /= adj_vertics.size();
+		new_pc.t_coord /= adj_vertics.size();
+
+	}
+
+	bool Parameter::GetConnerParamCoord(int chart_id, int conner_idx, ParamCoord& conner_pc) const
+	{
+		const std::vector<ParamPatch>& patch_vec = p_chart_creator->GetPatchArray();
+		const std::vector<ParamChart>& chart_vec = p_chart_creator->GetChartArray();			
+		const ParamChart& chart = chart_vec[chart_id];
+		const std::vector<int>& patch_conners = patch_vec[chart_id].m_conner_index_array;
+		for(size_t i=0; i<patch_conners.size(); ++i)
+		{
+			if(conner_idx == patch_conners[i])
+			{
+				conner_pc = chart.m_conner_param_coord_array[i];
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	void Parameter::SetInitFaceChartLayout()
@@ -100,12 +295,7 @@ namespace PARAM
 			}
 		}
 
-        ofstream fout("temp.txt");
-        for(size_t k=0; k<(size_t)face_num; ++k){
-            fout << m_face_chart_array[k] <<" ";
-        }
-        fout << std::endl;
-        fout.close();
+        m_face_patch_array = m_face_chart_array;
 	}
 
 	void Parameter::SetInitVertChartLayout()
@@ -131,14 +321,9 @@ namespace PARAM
 				if(im->second > max_num) { max_num = im->second; chart_id = im->first; }
 			}
 			m_vert_chart_array[vid] = chart_id;
-		}
+		}			  		
 
-        ofstream fout("temp.txt");
-        for(int k=0; k<vert_num; ++k){
-            fout << m_vert_chart_array[k] << ' ';
-        }
-        fout << std::endl;
-        fout.close();
+        m_vert_patch_array = m_vert_chart_array;
 	}
    
 	void Parameter::SetBoundaryVertexParamValue(LinearSolver* p_linear_solver /* = NULL */)
@@ -244,15 +429,16 @@ namespace PARAM
 		m_vert_param_coord_array.resize(vert_num);
         
 		vector<int> vari_index_mapping;
-		SetVariIndexMapping(vari_index_mapping);
-
-		int vari_num = (int)vari_index_mapping.size()*2;
+		int vari_num = SetVariIndexMapping(vari_index_mapping);
+		vari_num *=2;
+		
 				
 		std::cout << "Begin solve parameterization: variable num "<< vari_num << std::endl;
 
 		LinearSolver linear_solver(vari_num);
 
 		SetBoundaryVertexParamValue();
+	 
 		
 		linear_solver.begin_equation();
 		for(int vid = 0; vid < vert_num; ++vid)
@@ -337,9 +523,17 @@ namespace PARAM
 
 			}
 		}
+
 		linear_solver.end_equation();
 
+		linear_solver.set_equation_div_flag();
+
+
+
+
 		linear_solver.solve();
+
+
 
 		for(int vid=0; vid < vert_num; ++vid)
 		{
@@ -348,6 +542,11 @@ namespace PARAM
 			{
 				m_vert_param_coord_array[vid].s_coord = linear_solver.variable(vari_index*2).value();
 				m_vert_param_coord_array[vid].t_coord = linear_solver.variable(vari_index*2+1).value();
+
+				if(fabs(m_vert_param_coord_array[vid].s_coord) < LARGE_ZERO_EPSILON) m_vert_param_coord_array[vid].s_coord = 0.0;
+				if(fabs(m_vert_param_coord_array[vid].s_coord - 1) < LARGE_ZERO_EPSILON) m_vert_param_coord_array[vid].s_coord = 1.0;
+				if(fabs(m_vert_param_coord_array[vid].t_coord) < LARGE_ZERO_EPSILON) m_vert_param_coord_array[vid].t_coord = 0.0;
+				if(fabs(m_vert_param_coord_array[vid].t_coord - 1) < LARGE_ZERO_EPSILON) m_vert_param_coord_array[vid].t_coord = 1.0;
 			}
 		}
 
@@ -360,7 +559,7 @@ namespace PARAM
 
 	}
 
-	void Parameter::SetVariIndexMapping(std::vector<int>& vari_index_mapping)
+	int Parameter::SetVariIndexMapping(std::vector<int>& vari_index_mapping)
 	{
 		int vert_num = p_mesh->m_Kernel.GetModelInfo().GetVertexNum();
 		vari_index_mapping.clear();
@@ -377,12 +576,14 @@ namespace PARAM
         
 		int vari_num = 0;
 		for(int vid=0; vid < vert_num; ++vid){
-			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid) 
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid)
 				|| find(conner_vertices.begin(), conner_vertices.end(), vid) != conner_vertices.end()){
 				continue;
 			}
 			vari_index_mapping[vid] = vari_num++;
 		}
+
+		return vari_num;
 	}
 
 	void Parameter::AdjustPatchBoundary()
@@ -390,7 +591,7 @@ namespace PARAM
 		const std::vector<ParamChart>& param_chart_array = p_chart_creator->GetChartArray();
 		const PolyIndexArray& vert_adjvertices_array =p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
 
-		bool swap_able = false;
+		bool swap_able = false, tag=false;
 		do{
 			swap_able = false;
 			int adjust_num(0);
@@ -402,7 +603,12 @@ namespace PARAM
 				if(param_chart.InValidRangle(param_coord)) continue;
 
 				bool flag = false;
-				double out_range_error = ComputeOutRangeError4EqualTriangle(param_coord);
+				double out_range_error ;
+				if(param_chart.m_conner_param_coord_array.size() == 3){				
+					out_range_error = ComputeOutRangeError4TriangleChart(param_coord, chart_id);
+				}else if(param_chart.m_conner_param_coord_array.size() == 4)
+					out_range_error = ComputeOutRangeError4Square(param_coord);
+
 				double min_out_range_error = out_range_error;
 				int min_error_chart_id = chart_id;
 				ParamCoord min_error_param_coord;
@@ -432,7 +638,11 @@ namespace PARAM
 						break;
 					}else
 					{
-						double cur_out_range_error = ComputeOutRangeError4EqualTriangle(param_coord);
+						double cur_out_range_error ;
+						if(adj_chart.m_conner_param_coord_array.size() == 3)
+							cur_out_range_error = ComputeOutRangeError4TriangleChart(param_coord, adj_chart_id);						  
+						else if(adj_chart.m_conner_param_coord_array.size() == 4)
+							cur_out_range_error = ComputeOutRangeError4Square(param_coord);
 						if(cur_out_range_error < min_out_range_error)
 						{
 							min_out_range_error = cur_out_range_error;
@@ -446,16 +656,45 @@ namespace PARAM
 				{
 					// 	if(chart_id == min_error_chart_id) 
 					// 	 std::cout<<"Can't adjust this vertex " << vid << std::endl;
-					// 				m_vert_chart_array[vid] = min_error_chart_id;
-					// 				m_vert_param_coord_array[vid] = min_error_param_coord;
+					
+// 					m_vert_chart_array[vid] = min_error_chart_id;
+// 					m_vert_param_coord_array[vid] = min_error_param_coord;
 				}else
 				{
 					adjust_num ++;
 				}
 			}
 			std::cout << "Adjust " << adjust_num << "vertices." << std::endl;
+			
+			
 		}while(swap_able);
+
+		std::vector<int> out_range_vertices;
+		GetOutRangeVertices(out_range_vertices);
+
+		FixAdjustedVertex(true);
 		
+	}
+
+	void Parameter::VertexRelalaxation()
+	{
+		vector<int> out_range_vert_array;
+		GetOutRangeVertices(out_range_vert_array);		
+
+		int adjust_vert_num = 0;
+		for(size_t k=0; k<out_range_vert_array.size(); ++k)
+		{
+			int out_range_vert = out_range_vert_array[k];
+			if(!FindValidChartForOutRangeVertex(out_range_vert, 1))
+			{
+				std::cout<<"Can't find valid chart for this our range vertex " << out_range_vert << std::endl;
+			}else
+			{
+				adjust_vert_num ++;
+			}
+		}
+
+		std::cout<<"Adjust " << adjust_vert_num <<" vertices.\n";
 	}
 
 	void Parameter::GetOutRangeVertices(std::vector<int>& out_range_vert_array) const
@@ -515,7 +754,11 @@ namespace PARAM
 				break;
 			}else
 			{
-				double cur_out_range_error = ComputeOutRangeError4EqualTriangle(cur_param_coord);
+				double cur_out_range_error;
+				if(cur_param_chart.m_conner_param_coord_array.size() == 4)
+					cur_out_range_error = ComputeOutRangeError4Square(cur_param_coord);
+				else if(cur_param_chart.m_conner_param_coord_array.size() == 3)
+					cur_out_range_error = ComputeOutRangeError4TriangleChart(cur_param_coord, cur_chart_id);
 				if(cur_out_range_error < min_out_range_error)
 				{
 					min_out_range_error = cur_out_range_error;
@@ -550,25 +793,25 @@ namespace PARAM
 		}else
 		{
 			//: TODO: we should find a min-unvalid-error chart as this vertex's chart
-			m_vert_chart_array[out_range_vert] = min_error_valid_chart_id;
-			m_vert_param_coord_array[out_range_vert] = min_error_valid_param_coord;
+			//m_vert_chart_array[out_range_vert] = min_error_valid_chart_id;
+			//m_vert_param_coord_array[out_range_vert] = min_error_valid_param_coord;
 			return false;
 		}
 		return false;
 	}
 
-	void Parameter::TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, 
-		const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const
-	{	
-		TransFunctor tran_functor(p_chart_creator);
-		zjucad::matrix::matrix<double> tran_mat = 
-			tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
-
-		to_param_coord.s_coord = tran_mat(0, 0)*from_param_coord.s_coord + 
-			tran_mat(0, 1)*from_param_coord.t_coord + tran_mat(0, 2);
-		to_param_coord.t_coord = tran_mat(1, 0)*from_param_coord.s_coord +
-			tran_mat(1, 1)*from_param_coord.t_coord + tran_mat(1, 2);
-	}
+// 	void Parameter::TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, 
+// 		const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const
+// 	{	
+// 		TransFunctor tran_functor(p_chart_creator);
+// 		zjucad::matrix::matrix<double> tran_mat = 
+// 			tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
+// 
+// 		to_param_coord.s_coord = tran_mat(0, 0)*from_param_coord.s_coord + 
+// 			tran_mat(0, 1)*from_param_coord.t_coord + tran_mat(0, 2);
+// 		to_param_coord.t_coord = tran_mat(1, 0)*from_param_coord.s_coord +
+// 			tran_mat(1, 1)*from_param_coord.t_coord + tran_mat(1, 2);
+// 	}
 
 	void Parameter::TransParamCoordBetweenCharts(int from_chart_id, int to_chart_id, int vid, 
 		const ParamCoord& from_param_coord, ParamCoord& to_param_coord) const
@@ -582,7 +825,7 @@ namespace PARAM
 			vid, from_chart_id, to_chart_id, from_param_coord, to_param_coord);
 		}else{
 			zjucad::matrix::matrix<double> tran_mat = 
-				tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
+				tran_functor.GetTransMatrix(from_chart_id, to_chart_id, vid);
 
 			to_param_coord.s_coord = tran_mat(0, 0)*from_param_coord.s_coord + 
 				tran_mat(0, 1)*from_param_coord.t_coord + tran_mat(0, 2);
@@ -598,7 +841,7 @@ namespace PARAM
 		if(is_ambiguity){
 			return tran_functor.GetTransMatrixBetweenAmbiguityCharts(from_vid, from_chart_id, to_vid, to_chart_id);
 		}else{
-			return tran_functor.GetTransMatrix(from_chart_id, to_chart_id);
+			return tran_functor.GetTransMatrix(from_vid, from_chart_id, to_vid, to_chart_id);
 		}
 	}
 
@@ -675,7 +918,11 @@ namespace PARAM
 					if(!param_chart.InValidRangle(cur_param_coord))
 					{
 						flag = false;		
-						out_range_error += ComputeOutRangeError4EqualTriangle(cur_param_coord);
+ 						if(param_chart.m_conner_param_coord_array.size() == 3)
+ 							out_range_error += ComputeOutRangeError4TriangleChart(cur_param_coord, cur_chart_id);
+ 						else if(param_chart.m_conner_param_coord_array.size() == 4)
+ 							out_range_error += ComputeOutRangeError4Square(cur_param_coord);
+
 					}
 				}
 				if(flag == true)
@@ -690,12 +937,13 @@ namespace PARAM
 					}
 				}
 			}
+
 			if(std_chart_id == -1)
 			{
 				m_unset_layout_face_array.push_back(i);
 				if(min_error_chart_id != -1) std_chart_id = min_error_chart_id;
 				else{
-				//std::cout<<"Can't find valid chart for this face's three vertices!\n";
+					//std::cout<<"Can't find valid chart for this face's three vertices!\n";
 					int max_times(-1);
 					for(size_t k=0; k<chart_id_vec.size(); ++k){
 						int c = chart_id_vec[k];
@@ -711,6 +959,8 @@ namespace PARAM
 
 			m_face_chart_array[i] = std_chart_id;
 		}
+
+		//std::cout << "There are " << m_unset_layout_face_array.size() << "unset faces." << std::endl;
 
 		ofstream fout("unset_face.txt");
 		for(size_t k=0; k<m_unset_layout_face_array.size(); ++k)
@@ -765,7 +1015,7 @@ namespace PARAM
 
 			const IndexArray& faces = face_list_array[fid];			
 			int face_chart_id = m_face_chart_array[fid];
-            //		face_chart_id = FindBestChartIDForTriShape(fid);
+           // 		face_chart_id = FindBestChartIDForTriShape(fid);
 
 			for(int k=0; k<3; ++k)
 			{
@@ -785,10 +1035,22 @@ namespace PARAM
 
 	void Parameter::SetChartVerticesArray()
 	{
-		int colors[16][3] = 
-		{
+		int colors[56][3] = 
+		{			  
 			{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, 
 			{ 255, 0 , 255}, {0, 255, 255}, {255, 255, 255}, {0, 0, 0},
+
+			{255, 128, 128}, {0, 64, 128},  {255, 128, 192}, {128, 255, 128}, 
+			{0, 255, 128}, {128, 255, 255}, {0, 128, 255}, {255, 128, 255}, 
+
+			{255, 0, 0}, {255, 255, 0}, {128, 255, 0}, {0, 255, 64}, 
+			{0, 255, 255}, {0, 128, 192}, {128, 128, 192}, {255, 0, 255}, 
+
+			{128, 64, 64}, {255, 128, 64}, {0, 255, 0}, {0, 128, 128}, 
+			{0, 64, 128}, {128, 128, 255}, {128, 0, 64}, {255, 0, 128}, 
+
+			{128, 0, 0}, {0, 128, 0}, {0, 128, 64}, {255, 255, 128},
+			{0, 0, 255}, {0, 0, 160}, {128, 0, 128}, {128, 0, 255}, 
 
 			{64, 0, 0}, {128, 64, 0}, {0, 64, 0}, {0, 64, 64}, 
 			{0, 0, 128}, {0, 0, 64}, {64, 0, 64}, {64, 0, 128}, 
@@ -808,7 +1070,7 @@ namespace PARAM
 			int chart_id = m_vert_chart_array[vid];
 			m_chart_vertices_array[chart_id].push_back(vid);
 
-			vtx_color_array[vid] = Color(colors[chart_id%16][0], colors[chart_id%16][1], colors[chart_id%16][2]);
+			vtx_color_array[vid] = Color(colors[chart_id%56][0], colors[chart_id%56][1], colors[chart_id%56][2]);
 		}
 		
 	}
@@ -816,26 +1078,27 @@ namespace PARAM
     double Parameter::ComputeOutRangeError4Square(ParamCoord param_coord) const
     {
         double error=0;
-        if(GreaterEqual(param_coord.s_coord, 1) || LessEqual(param_coord.s_coord, 0)){
+        if(GreaterEqual(param_coord.s_coord, 1) || LessEqual(param_coord.s_coord, 0))
+		{
             if(LessEqual(param_coord.s_coord, 0)) error += param_coord.s_coord*param_coord.s_coord;
             else if(GreaterEqual(param_coord.s_coord, 1)) error += (param_coord.s_coord-1)*(param_coord.s_coord-1);
-        }if(GreaterEqual(param_coord.t_coord, 1) || LessEqual(param_coord.t_coord, 0))	{
+        }
+		if(GreaterEqual(param_coord.t_coord, 1) || LessEqual(param_coord.t_coord, 0))	
+		{
             if(LessEqual(param_coord.t_coord, 0)) error += param_coord.t_coord*param_coord.t_coord;
             else if(GreaterEqual(param_coord.t_coord, 1)) error += (param_coord.t_coord-1)*(param_coord.t_coord-1);
         }
         return sqrt(error);
     }
 
-	double Parameter::ComputeOutRangeError4EqualTriangle(ParamCoord param_coord) const
+	double Parameter::ComputeOutRangeError4TriangleChart(ParamCoord param_coord, int chart_id)
 	{
-		/// you must be sure that this parameter coordinate is outrange
-		double sqrt_3 = sqrt(3.0)/2;
-		double dist1 = dis_ptoline(0, 0, 0.5, sqrt_3, param_coord.s_coord, param_coord.t_coord);
-		double dist2 = dis_ptoline(0, 0, 1.0, 0, param_coord.s_coord, param_coord.t_coord);
-		double dist3 = dis_ptoline(1.0, 0, 0.5, sqrt_3, param_coord.s_coord, param_coord.t_coord);
-
-		double min_dist = min(dist1, min(dist2, dist3));
-		return min_dist;
+		const ParamChart& chart = (p_chart_creator->GetChartArray())[chart_id];
+		Coord2D p(param_coord.s_coord, param_coord.t_coord);
+		Coord2D a(chart.m_conner_param_coord_array[0].s_coord, chart.m_conner_param_coord_array[0].t_coord);
+		Coord2D b(chart.m_conner_param_coord_array[1].s_coord, chart.m_conner_param_coord_array[1].t_coord);
+		Coord2D c(chart.m_conner_param_coord_array[2].s_coord, chart.m_conner_param_coord_array[2].t_coord);
+		return DistanceToTriangle(p, a, b, c);
 	}
 
 	int Parameter::FindBestChartIDForTriShape(int fid) const
@@ -917,6 +1180,14 @@ namespace PARAM
 		
 		if(!FindCorrespondingInChart(chart_param_coord, chart_id, surface_coord))
 		{
+			const std::vector<ParamPatch>& patch_vec = p_chart_creator->GetPatchArray();
+			const ParamPatch& param_patch = patch_vec[chart_id];
+			const std::vector<int>& nb_patchs = param_patch.m_nb_patch_index_array;
+			for(size_t i=0; i<nb_patchs.size(); ++i)
+			{
+				int adj_chart_id = nb_patchs[i];
+				if(FindCorrespondingInChart(chart_param_coord, adj_chart_id, surface_coord)) break;
+			}
 			std::cout<<"Cann't find corresponding vertex" << std::endl;			
 			return false;
 		}
@@ -929,10 +1200,6 @@ namespace PARAM
 	{
 		int origin_chart_id =chart_param_coord.chart_id;
 		ParamCoord origin_param_coord = chart_param_coord.param_coord;
-		if(origin_chart_id != chart_id) 
-		{
-			TransParamCoordBetweenCharts(origin_chart_id, chart_id, chart_param_coord.param_coord, origin_param_coord);
-		}
 
 		const PolyIndexArray& vert_adj_face_array = p_mesh->m_Kernel.GetVertexInfo().GetAdjFaces();
 		const PolyIndexArray& face_list_array = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
@@ -960,7 +1227,7 @@ namespace PARAM
 						vert_param_coord[j] = m_vert_param_coord_array[faces[j]];
 						if(m_vert_chart_array[faces[j]] != chart_id)
 						{
-							TransParamCoordBetweenCharts(m_vert_chart_array[faces[j]], chart_id,
+							TransParamCoordBetweenCharts(m_vert_chart_array[faces[j]], chart_id, faces[j], 
 								m_vert_param_coord_array[faces[j]], vert_param_coord[j]);
 						}
 					}
@@ -993,7 +1260,25 @@ namespace PARAM
 		const std::vector<double>& face_harmonic_distortion = tri_distortion.GetFaceHarmonicDistortion();
 		const std::vector<double>& face_isometric_distortion = tri_distortion.GetFaceIsometricDistortion();
 
-		FaceValue2VtxColor(p_mesh, face_harmonic_distortion);
+		ofstream fout("distortion.txt");
+		for(size_t k=0; k<face_isometric_distortion.size(); ++k){
+			fout << face_isometric_distortion[k] << std::endl;
+		}
+		fout.close();
+
+		//FaceValue2VtxColor(p_mesh, face_harmonic_distortion);
+		std::vector<double> face_value = face_isometric_distortion;
+// 		double sum_value = 0.0;
+// 		for(size_t k=0; k<face_value.size(); ++k)
+// 		{
+// 			sum_value += face_value[k]*face_value[k];
+// 		}
+// 		sum_value = sqrt(sum_value);
+// 		for(size_t k=0; k<face_value.size(); ++k)
+// 		{
+// 			face_value[k] /= sum_value;
+// 		}
+		FaceValue2VtxColor(p_mesh, face_value);
 		
 	}
 
@@ -1026,7 +1311,10 @@ namespace PARAM
 			/// (v2-v0)*(u1-u0) - (u2-u0)*(v1-v0)
 			double area = (u[1] - u[0]) * (v[2] - v[0]) - (u[2] - u[0]) * (v[1]-v[0]);
 			if(fabs(area) < LARGE_ZERO_EPSILON) continue;
-			if(area < 0 ) m_fliped_face_array.push_back(fid);
+			if(area < 0 ){
+				m_fliped_face_array.push_back(fid);
+//				std::cout << fid << " : " << m_stiffen_weight[fid] << std::endl;
+			}
 		}
 		std::cout << "There are " << m_fliped_face_array.size() <<" fliped faces." << std::endl;
 	}
@@ -1051,5 +1339,394 @@ namespace PARAM
 
 		if(common_edges.size() >=2 ) return true;
 		return false;
+	}		
+	
+	bool Parameter::IsConnerVertex(int vert_vid) const
+	{
+		if(p_chart_creator == NULL) return true;
+		const std::vector<PatchConner>& conners = p_chart_creator->GetPatchConnerArray();
+
+		for(size_t k=0; k<conners.size(); ++k)
+		{
+			if(conners[k].m_mesh_index == vert_vid) return true;
+		}
+		return false;
 	}
+
+	void Parameter::ComputeFaceSignFuncValue(std::vector<int>& face_sign_func_value)// const
+	{
+		int face_num = p_mesh->m_Kernel.GetModelInfo().GetFaceNum();
+		face_sign_func_value.clear(); 
+		face_sign_func_value.resize(face_num, 0);
+
+		const PolyIndexArray& face_list = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+
+		int flip_tri_num = 0;
+		for(int k=0; k<face_num; ++k)
+		{
+			const IndexArray& face = face_list[k];
+			int face_chart_id = m_face_chart_array[k];
+			std::vector<double> u(3), v(3);
+			for(int i=0; i<3; ++i)
+			{
+				int vid = face[i];
+				int chart_id = m_vert_chart_array[vid];
+				ParamCoord param_coord = m_vert_param_coord_array[vid];
+				if(chart_id != face_chart_id)
+				{
+					TransParamCoordBetweenCharts(chart_id, face_chart_id, vid,
+						m_vert_param_coord_array[vid], param_coord);
+				}
+				u[i] = param_coord.s_coord;
+				v[i] = param_coord.t_coord;
+			}		   			
+			
+			double f_value = (u[1]-u[0]) * (v[2]-v[0]) - (u[2]-u[0]) * (v[1]-v[0]);
+			face_sign_func_value[k] = SignFunc(f_value);
+			if(face_sign_func_value[k] == -1){
+				flip_tri_num ++;
+				
+			}
+		}
+		std::cout << "Fliped triangles number: " << flip_tri_num << std::endl;
+	}
+
+	void Parameter::ComputeFaceLocalDistortion(const std::vector<int>& face_sign_func_value, 
+		std::vector<double>& face_distortion) const
+	{
+		TriDistortion tri_distortion(*this);
+		int face_num = p_mesh->m_Kernel.GetModelInfo().GetFaceNum();
+		face_distortion.clear(); face_distortion.resize(face_num);
+		for(int k=0; k<face_num; ++k)
+		{
+			zjucad::matrix::matrix<double> jaobi_mat = tri_distortion.ComputeParamJacobiMatrix(k);			
+			zjucad::matrix::matrix<double> U, S, VT;
+			svd(jaobi_mat, U, S, VT);
+			double s1 = S(0, 0), s2 = S(1, 1);
+			face_distortion[k] = fabs( face_sign_func_value[k]*s1 - 1) 
+				+ fabs( face_sign_func_value[k]*s2 - 1);
+		}
+	}
+
+
+	void Parameter::UpdateStiffeningWeight(const std::vector<double>& face_distortion)
+	{
+		const PolyIndexArray& face_list = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+
+		size_t face_num = face_list.size();
+		
+		for(size_t fid=0; fid<face_num; ++fid)
+		{
+			const IndexArray& face = face_list[fid];
+			double delta_d = face_distortion[fid];
+			delta_d = 0.0;
+			for(int i=0; i<3; ++i)
+			{
+				int vid1 = face[i], vid2 = face[(i+1)%3];
+				std::vector<int> adj_faces = GetMeshEdgeAdjFaces(p_mesh, vid1, vid2);
+				assert(adj_faces.size() == 2);
+				int _fid = (adj_faces[0] == fid) ? adj_faces[1] : adj_faces[0];
+				delta_d += face_distortion[_fid];
+			}
+			delta_d /= 3.0;
+
+			//delta_d = face_distortion[fid];
+
+			m_stiffen_weight[fid] += std::min(delta_d, 15.0);
+		}
+
+		ofstream fout("Stiffen-Weight.txt");
+		for(size_t fid=0; fid<face_num; ++fid)
+		{
+			fout << m_stiffen_weight[fid] << std::endl;
+		}
+		fout.close();
+
+	}
+
+	void Parameter::LocalStiffening()
+	{						
+		std::vector<int> face_sign_func_value;
+		ComputeFaceSignFuncValue(face_sign_func_value);
+		
+ 		std::vector<double> face_distortion;
+ 		ComputeFaceLocalDistortion(face_sign_func_value, face_distortion);
+
+		const PolyIndexArray& face_list = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+		const PolyIndexArray& adjface_list = p_mesh->m_Kernel.GetVertexInfo().GetAdjFaces();
+
+		UpdateStiffeningWeight(face_distortion);
+
+		size_t face_num = face_list.size();
+
+		for(size_t k=0; k<face_num; ++k)
+		{
+			const IndexArray& face = face_list[k];
+			
+		}
+
+		for(size_t k=0; k < face_num; ++k)
+		{
+			const IndexArray& face = face_list[k];
+			if(face_sign_func_value[k] < 0 || m_flippd_face[k] == true)
+			{
+				m_flippd_face[k] = true;
+				m_stiffen_weight[k] = (m_stiffen_weight[k] + 20000)/2;
+
+				std::vector<int> nb_1_ring;
+				p_mesh->m_BasicOp.GetFaceNeighborhood(k, nb_1_ring);
+
+				for(size_t i=0; i<nb_1_ring.size(); ++i)
+				{
+					int nb1_fid = nb_1_ring[i];
+					if(face_sign_func_value[nb1_fid] >= 0 && m_flippd_face[nb1_fid] == false){
+						m_stiffen_weight[nb1_fid] = (m_stiffen_weight[nb1_fid] + 2000)/2;
+					}
+
+					std::vector<int> nb_2_ring;
+					p_mesh->m_BasicOp.GetFaceNeighborhood(nb1_fid, nb_2_ring);
+					for(size_t j=0; j<nb_2_ring.size(); ++j)
+					{
+						int nb2_fid = nb_2_ring[j];
+						if(find(nb_1_ring.begin(), nb_1_ring.end(), nb2_fid) != nb_1_ring.end())
+						{
+							if(face_sign_func_value[nb2_fid] >=0 && m_flippd_face[nb2_fid] == false){
+								m_stiffen_weight[nb2_fid] = (m_stiffen_weight[nb2_fid] + 200) /2;
+							}
+						}
+
+						std::vector<int> nb_3_ring;
+						p_mesh->m_BasicOp.GetFaceNeighborhood(nb2_fid, nb_3_ring);
+						for(size_t k=0; k<nb_3_ring.size(); ++k)
+						{
+							if(find(nb_1_ring.begin(), nb_1_ring.end(), nb1_fid) != nb_1_ring.end() &&
+								find(nb_2_ring.begin(), nb_2_ring.end(), nb2_fid) != nb_2_ring.end())
+							{
+								int nb3_fid = nb_3_ring[k];
+								if(face_sign_func_value[nb3_fid] >= 0 && m_flippd_face[nb3_fid] == false){
+									m_stiffen_weight[nb3_fid] = (m_stiffen_weight[nb3_fid] + 20) / 2;
+								}
+							}
+						}
+					}
+				}
+
+
+// 				for(int i=0; i<3; ++i)
+// 				{
+// 					int vid = face[i];
+// 					const IndexArray& adjfaces = adjface_list[vid];
+// 
+// 					for(size_t j=0; j<adjfaces.size(); ++j)
+// 					{
+// 						int adj_fid = adjfaces[j];
+// 						if(face_sign_func_value[adj_fid] >=0)
+// 							m_stiffen_weight[adjfaces[j]] = 500;
+// 					}
+// 				}
+			}else{
+				m_stiffen_weight[k] = 1.0;
+			}
+		} 		
+
+	}
+
+	void Parameter::SetLapMatrixWithStiffeningWeight(CMeshSparseMatrix& stiffen_lap_mat)
+	{
+		std::vector<Coord> cot_coef_vec;
+		SetCotCoef(p_mesh, cot_coef_vec);
+
+		const PolyIndexArray& vAdjFaces = p_mesh->m_Kernel.GetVertexInfo().GetAdjFaces();
+		const PolyIndexArray& fIndex = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+
+		int i, j, k, n;
+		int fID, vID;
+		int row, col;		
+
+		size_t vert_num = p_mesh->m_Kernel.GetVertexInfo().GetCoord().size();
+		//
+		int nb_variables_ = (int) vert_num;
+		stiffen_lap_mat.SetRowCol(nb_variables_, nb_variables_);
+
+		for(i = 0; i < nb_variables_; ++ i)
+		{
+			const IndexArray& adjFaces = vAdjFaces[i];
+			row = i;
+			n = (int) adjFaces.size();
+
+			for (j = 0; j < n; j++)
+			{
+				fID = adjFaces[j];
+				const IndexArray& f = fIndex[fID];
+
+				// Find the position of vertex i in face fID
+				for(k = 0; k < 3; ++ k)
+				{
+					if(f[k] == i) break;
+				}
+				assert(k!=3);
+
+				vID = f[(k+1)%3];
+				col = vID;
+
+				double value;
+				double stiffen_weight = m_stiffen_weight[fID];
+				double coef1 = cot_coef_vec[fID][(k+2)%3] * stiffen_weight;
+				stiffen_lap_mat.GetElement(row, col, value);
+				value -= coef1;
+				stiffen_lap_mat.SetElement(row, col, value);
+
+				vID = f[(k+2)%3];
+				col = vID;
+
+				double coef2 = cot_coef_vec[fID][(k+1)%3] * stiffen_weight;
+				stiffen_lap_mat.GetElement(row, col, value);
+				value -= coef2;
+				stiffen_lap_mat.SetElement(row, col, value);
+
+				stiffen_lap_mat.GetElement(row, row, value);
+				value += coef1 + coef2; 
+				stiffen_lap_mat.SetElement(row, row, value);
+			}
+		}
+
+	}
+
+	void Parameter::SetMeanValueLapMatrixWithStiffeningWeight(CMeshSparseMatrix& lap_matrix)
+	{
+		if(p_mesh == NULL) return;
+		int vert_num = p_mesh->m_Kernel.GetModelInfo().GetVertexNum();
+
+		std::vector< std::vector<double> > vert_tan_coef(vert_num);
+		const PolyIndexArray& vert_adj_faces = p_mesh->m_Kernel.GetVertexInfo().GetAdjFaces();
+		const PolyIndexArray& vert_adj_vertices = p_mesh->m_Kernel.GetVertexInfo().GetAdjVertices();
+		const CoordArray& vCoord = p_mesh->m_Kernel.GetVertexInfo().GetCoord();
+		const PolyIndexArray& face_list = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+
+		for(int vid=0; vid < vert_num; ++vid){
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(vid)) continue;
+			const IndexArray& adj_vert_array = vert_adj_vertices[vid];
+			for(size_t i=0; i<adj_vert_array.size(); ++i)
+			{
+				int cur_vtx = adj_vert_array[i];
+				int nxt_vtx = adj_vert_array[(i+1)%adj_vert_array.size()];
+				Coord e1 = vCoord[cur_vtx] - vCoord[vid];
+				Coord e2 = vCoord[nxt_vtx] - vCoord[vid];
+
+				double a = angle(e1, e2)/2;
+				vert_tan_coef[vid].push_back(tan(a));
+			}
+		}	   
+
+		//
+		int nb_variables_ = vert_num;
+		lap_matrix.SetRowCol(nb_variables_, nb_variables_);
+		
+
+		for(int i = 0; i < nb_variables_; ++ i)
+		{
+			if(p_mesh->m_BasicOp.IsBoundaryVertex(i)) continue;
+			const IndexArray& adjVertices = vert_adj_vertices[i];
+			const IndexArray& adjFaces = vert_adj_faces[i];
+			int row = i;
+
+			int adj_num = adjVertices.size();
+			for(int j=0; j<adj_num; ++j)
+			{
+				int fid=-1;
+				{
+					int vid1 = adjVertices[j];
+					int vid2 = adjVertices[(j+adj_num-1)%adj_num];
+					int vid3 = i;
+					if(vid1 > vid2) swap(vid1, vid2);
+					if(vid2 > vid3) swap(vid2, vid3);
+					if(vid1 > vid2) swap(vid1, vid2);
+
+					for(size_t k=0; k<adjFaces.size(); ++k)
+					{
+						const IndexArray& face = face_list[adjFaces[k]];
+						int _vid1 = face[0], _vid2 = face[1], _vid3 = face[2];
+						if(_vid1 > _vid2) swap(_vid1, _vid2);
+						if(_vid2 > _vid3) swap(_vid2, _vid3);
+						if(_vid1 > _vid2) swap(_vid1, _vid2);
+
+						if(vid1 == _vid1 && vid2 == _vid2 && vid3 == _vid3)
+						{
+							fid = adjFaces[k]; break;
+						}
+					}
+				}
+				if(fid == -1){
+					std::cerr <<"error, fid == -1" << std::endl;
+				}
+				
+				double stiffen_weight = m_stiffen_weight[fid];			   
+				int col = adjVertices[j];
+				double edge_len = (vCoord[row]-vCoord[col]).abs();
+				double coef = (vert_tan_coef[i][j] + vert_tan_coef[i][(j+adj_num-1)%adj_num])/edge_len;
+				coef *= stiffen_weight;
+				double cur_value;
+				lap_matrix.GetElement(row, col, cur_value);
+				cur_value -= coef;
+				lap_matrix.SetElement(row, col, cur_value);
+
+				lap_matrix.GetElement(row, row, cur_value);
+				cur_value += coef;
+				lap_matrix.SetElement(row, row, cur_value);
+
+			}
+
+		}
+	}
+
+	std::vector<ParamCoord> Parameter::GetFaceVertParamCoord(int fid) const
+	{
+		const PolyIndexArray& fIndex = p_mesh->m_Kernel.GetFaceInfo().GetIndex();
+		const IndexArray& face= fIndex[fid];
+
+		std::vector<ParamCoord> pc_vec(3);
+		int chart_id = m_face_chart_array[fid];
+		for(int i=0; i<3; ++i)
+		{
+			int vid = face[i];
+			int cur_chart_id = m_vert_chart_array[vid];
+			pc_vec[i] = m_vert_param_coord_array[vid];
+			if(cur_chart_id != chart_id)
+			{
+				TransParamCoordBetweenCharts(cur_chart_id, chart_id, vid, 
+					m_vert_param_coord_array[vid], pc_vec[i]);
+			}
+		}
+		return pc_vec;
+	}
+
+	void ChartCreator::AlginQuadPatchOrient()
+	{
+		int origin_chart_id = 0;
+		std::set<int> aligned_chart;
+		std::queue<int> q;
+		q.push(origin_chart_id);
+		aligned_chart.insert(origin_chart_id);
+
+		map< int, int> orient_map;
+
+		while(!q.empty())
+		{
+			int pid = q.front(); q.pop();
+			const ParamPatch& patch = m_patch_array[pid];
+			const std::vector<int>& nb_charts = patch.m_nb_patch_index_array;
+			const std::vector<int>& edges = patch.m_edge_index_array;
+			for(size_t i=0; i<4; ++i)
+			{
+				int e_id = edges[i];
+				int nb_pid = nb_charts[i];
+				if(aligned_chart.find(nb_pid) != aligned_chart.end()) continue;
+
+				ParamPatch& nb_patch = m_patch_array[nb_pid];
+				std::vector<int>& nb_edges = nb_patch.m_edge_index_array;
+				int ps = find(nb_edges.begin(), nb_edges.end(), e_id) - nb_edges.begin();
+			}
+		}
+	}
+
 }

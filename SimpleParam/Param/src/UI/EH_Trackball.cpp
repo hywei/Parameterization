@@ -3,6 +3,8 @@
 #include "../Common/BasicDataType.h"
 #include "../OpenGL/GLElement.h"
 
+#include <iostream>
+
 #define MOUSE_ZOOM_RATIO_LARGE      0.1
 #define MOUSE_ZOOM_RATIO_MIDDLE     0.01
 #define MOUSE_ZOOM_RATIO_SMALL      0.001
@@ -95,7 +97,8 @@ bool EH_Trackball::OnMouseMove(unsigned int nFlags, int point_x, int point_y)
 
 			CMatrix TempMatrix(4);
 			TempMatrix.SetTrans2Matrix(Coord(dx, dy, dz));
-			m_ViewMtx = TempMatrix*m_ViewMtx;
+			m_ViewMtx = TempMatrix*m_ViewMtx;			
+
 		}
 		break;
 

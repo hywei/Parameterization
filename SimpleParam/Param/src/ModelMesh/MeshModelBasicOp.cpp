@@ -1976,8 +1976,7 @@ double MeshModelBasicOp::GetEdgeAdjFaceArea(VertexID vID_1, VertexID vID_2)
 void MeshModelBasicOp::GetNeighborhoodVertex(int vID, size_t neighRingSize, bool onlyRing, vector<int>& neighVIDs)
 {
 	PolyIndexArray& vAdjIndexArray = kernel->GetVertexInfo().GetAdjVertices();
-
-	fill(m_VertexFlag.begin(), m_VertexFlag.end(), false);
+	m_VertexFlag.clear(); m_VertexFlag.resize(vAdjIndexArray.size(), false);
 	m_VertexFlag[vID] = true;
 
 	vector<int> vidArray, tmpArray;

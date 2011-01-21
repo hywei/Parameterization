@@ -18,6 +18,8 @@ namespace PARAM
 	//! compute a vertex's barycentric in a triangle by each nodes' parameter coordinate
 	Barycentrc ComputeVertexBarycentric(const std::vector<ParamCoord>& node_param_coord_array, 
 		const ParamCoord& vtx_param_coord);
+	Barycentrc ComputeVertexBarycentric(const std::vector<Coord>& face_vert_coord_array, 
+		const Coord& vert_coord);
 	//! compute a vertex's coordinate with a triangle's nodes coordinate and its barycentric
 	Coord ComputeVertexCoord(const std::vector<Coord>& node_coord_array, const Barycentrc& baryc_coord);
 	//! check the barycentric is valid or not
